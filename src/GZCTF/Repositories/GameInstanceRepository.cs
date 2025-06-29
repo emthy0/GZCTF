@@ -2,7 +2,6 @@
 using GZCTF.Repositories.Interface;
 using GZCTF.Services.Container.Manager;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 
@@ -20,9 +19,9 @@ public class GameInstanceRepository(
 {
     public async Task<GameInstance?> GetInstance(Participation part, int challengeId, CancellationToken token = default)
     {
-        await using IDbContextTransaction transaction = await Context.Database.BeginTransactionAsync(token);
+        await using var transaction = await Context.Database.BeginTransactionAsync(token);
 
-        GameInstance? instance = await Context.GameInstances
+        var instance = await Context.GameInstances
             .Include(i => i.FlagContext)
             .Where(e => e.ChallengeId == challengeId && e.Participation == part)
             .SingleOrDefaultAsync(token);
@@ -30,23 +29,24 @@ public class GameInstanceRepository(
         if (instance is null)
         {
             logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_NoInstance), part.Id, challengeId],
+                StaticLocalizer[nameof(Resources.Program.InstanceRepository_NoInstance), part.Id, challengeId],
                 TaskStatus.NotFound,
                 LogLevel.Warning);
+            await transaction.RollbackAsync(token);
             return null;
         }
 
-        GameChallenge challenge = instance.Challenge;
+        var challenge = instance.Challenge;
 
         if (!challenge.IsEnabled)
         {
-            await transaction.CommitAsync(token);
+            await transaction.RollbackAsync(token);
             return null;
         }
 
         if (instance.IsLoaded)
         {
-            await transaction.CommitAsync(token);
+            await transaction.RollbackAsync(token);
             return instance;
         }
 
@@ -59,10 +59,7 @@ public class GameInstanceRepository(
                     instance.FlagContext = new()
                     {
                         Challenge = challenge,
-                        Flag
-                            // tiny probability will produce the same FLAG,
-                            // but this will not affect the correctness of the answer
-                            = challenge.GenerateDynamicFlag(part),
+                        Flag = challenge.GenerateDynamicFlag(part),
                         IsOccupied = true
                     };
                     break;
@@ -74,7 +71,7 @@ public class GameInstanceRepository(
                     if (flags.Count == 0)
                     {
                         logger.SystemLog(
-                            Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
+                            StaticLocalizer[nameof(Resources.Program.InstanceRepository_DynamicFlagsNotEnough),
                                 challenge.Title,
                                 challenge.Id], TaskStatus.Failed,
                             LogLevel.Warning);
@@ -98,7 +95,7 @@ public class GameInstanceRepository(
         catch
         {
             logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_GetInstanceFailed), part.Team.Name,
+                StaticLocalizer[nameof(Resources.Program.InstanceRepository_GetInstanceFailed), part.Team.Name,
                     challenge.Title,
                     challenge.Id],
                 TaskStatus.Failed, LogLevel.Warning);
@@ -116,7 +113,7 @@ public class GameInstanceRepository(
             gameInstance.Challenge.ContainerExposePort is null)
         {
             logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
+                StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
                     gameInstance.Challenge.Title],
                 TaskStatus.Denied, LogLevel.Warning);
             return new TaskResult<Container>(TaskStatus.Failed);
@@ -127,15 +124,15 @@ public class GameInstanceRepository(
         {
             if (containerPolicy.Value.AutoDestroyOnLimitReached)
             {
-                List<GameInstance> running = await Context.GameInstances
+                var running = await Context.GameInstances
                     .Where(i => i.Participation == gameInstance.Participation && i.Container != null)
                     .OrderBy(i => i.Container!.StartedAt).ToListAsync(token);
 
-                GameInstance? first = running.FirstOrDefault();
+                var first = running.FirstOrDefault();
                 if (running.Count >= game.ContainerCountLimit && first is not null)
                 {
                     logger.Log(
-                        Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerAutoDestroy),
+                        StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerAutoDestroy),
                             team.Name, first.Challenge.Title,
                             first.Container!.ContainerId],
                         user, TaskStatus.Success);
@@ -157,7 +154,7 @@ public class GameInstanceRepository(
             return new TaskResult<Container>(TaskStatus.Success, gameInstance.Container);
 
         await Context.Entry(gameInstance).Reference(e => e.FlagContext).LoadAsync(token);
-        Container? container = await service.CreateContainerAsync(new ContainerConfig
+        var container = await service.CreateContainerAsync(new ContainerConfig
         {
             TeamId = team.Id.ToString(),
             UserId = user.Id,
@@ -176,7 +173,7 @@ public class GameInstanceRepository(
         if (container is null)
         {
             logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
+                StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreationFailed),
                     gameInstance.Challenge.Title],
                 TaskStatus.Failed, LogLevel.Warning);
             return new TaskResult<Container>(TaskStatus.Failed);
@@ -189,7 +186,7 @@ public class GameInstanceRepository(
         gameInstance.LastContainerOperation = DateTimeOffset.UtcNow;
 
         logger.Log(
-            Program.StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreated), team.Name,
+            StaticLocalizer[nameof(Resources.Program.InstanceRepository_ContainerCreated), team.Name,
                 gameInstance.Challenge.Title,
                 container.ContainerId], user,
             TaskStatus.Success);
@@ -210,7 +207,7 @@ public class GameInstanceRepository(
 
     public async Task DestroyAllInstances(GameChallenge challenge, CancellationToken token = default)
     {
-        foreach (Container? container in await Context.GameInstances
+        foreach (var container in await Context.GameInstances
                      .Include(i => i.Container)
                      .Where(i => i.Challenge == challenge && i.ContainerId != null)
                      .Select(i => i.Container)
@@ -227,40 +224,39 @@ public class GameInstanceRepository(
     {
         CheatCheckInfo checkInfo = new();
 
-        GameInstance[] instances = await Context.GameInstances.Where(i => i.ChallengeId == submission.ChallengeId &&
-                                                                          i.ParticipationId !=
-                                                                          submission.ParticipationId)
-            .Include(i => i.FlagContext).Include(i => i.Participation)
-            .ThenInclude(i => i.Team).ToArrayAsync(token);
+        var instance = await Context.GameInstances
+            .Include(i => i.Participation)
+            .ThenInclude(i => i.Team)
+            .Include(i => i.FlagContext)
+            .Where(i => i.ChallengeId == submission.ChallengeId &&
+                        i.ParticipationId != submission.ParticipationId &&
+                        i.FlagContext != null && i.FlagContext.Flag == submission.Answer)
+            .FirstOrDefaultAsync(token);
 
-        foreach (GameInstance instance in instances)
-        {
-            if (instance.FlagContext?.Flag != submission.Answer)
-                continue;
-
-            Submission updateSub = await Context.Submissions.Where(s => s.Id == submission.Id).SingleAsync(token);
-
-            CheatInfo cheatInfo = await cheatInfoRepository.CreateCheatInfo(updateSub, instance, token);
-
-            checkInfo = CheatCheckInfo.FromCheatInfo(cheatInfo);
-
-            updateSub.Status = AnswerResult.CheatDetected;
-
-            await SaveAsync(token);
-
+        if (instance is null)
             return checkInfo;
-        }
+
+        var updateSub = await Context.Submissions.Where(s => s.Id == submission.Id).SingleAsync(token);
+
+        var cheatInfo = await cheatInfoRepository.CreateCheatInfo(updateSub, instance, token);
+
+        checkInfo = CheatCheckInfo.FromCheatInfo(cheatInfo);
+
+        updateSub.Status = AnswerResult.CheatDetected;
+
+        await SaveAsync(token);
 
         return checkInfo;
     }
 
     public async Task<VerifyResult> VerifyAnswer(Submission submission, CancellationToken token = default)
     {
-        IDbContextTransaction trans = await Context.Database.BeginTransactionAsync(token);
+        var trans = await Context.Database.BeginTransactionAsync(token);
 
         try
         {
-            GameInstance? instance = await Context.GameInstances.IgnoreAutoIncludes().Include(i => i.FlagContext)
+            var instance = await Context.GameInstances.IgnoreAutoIncludes()
+                .Include(i => i.FlagContext)
                 .SingleOrDefaultAsync(i => i.ChallengeId == submission.ChallengeId &&
                                            i.ParticipationId == submission.ParticipationId, token);
 
@@ -274,9 +270,9 @@ public class GameInstanceRepository(
 
             // submission is from the queue, do not modify it directly
             // we need to fetch the entity again to ensure it is being tracked correctly
-            Submission updateSub = await Context.Submissions.SingleAsync(s => s.Id == submission.Id, token);
+            var updateSub = await Context.Submissions.SingleAsync(s => s.Id == submission.Id, token);
 
-            if (instance.FlagContext is null && submission.GameChallenge.Type.IsStatic())
+            if (instance.FlagContext is null && submission.GameChallenge?.Type.IsStatic() is true)
                 updateSub.Status = await Context.FlagContexts.AsNoTracking()
                     .AnyAsync(
                         f => f.ChallengeId == submission.ChallengeId && f.Flag == submission.Answer,
@@ -289,9 +285,9 @@ public class GameInstanceRepository(
                     : AnswerResult.WrongAnswer;
 
             var firstTime = !instance.IsSolved && updateSub.Status == AnswerResult.Accepted;
-            var beforeEnd = submission.Game.EndTimeUtc > submission.SubmitTimeUtc;
+            var beforeEnd = submission.Game!.EndTimeUtc > submission.SubmitTimeUtc;
 
-            updateSub.GameChallenge.SubmissionCount++;
+            updateSub.GameChallenge!.SubmissionCount++;
 
             if (firstTime && beforeEnd)
             {

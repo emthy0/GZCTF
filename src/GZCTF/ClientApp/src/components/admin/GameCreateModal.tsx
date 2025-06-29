@@ -7,15 +7,15 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { useNavigate } from 'react-router'
+import { showErrorMsg } from '@Utils/Shared'
 import api, { GameInfoModel } from '@Api'
 
 interface GameCreateModalProps extends ModalProps {
   onAddGame: (game: GameInfoModel) => void
 }
 
-const GameCreateModal: FC<GameCreateModalProps> = (props) => {
+export const GameCreateModal: FC<GameCreateModalProps> = (props) => {
   const { onAddGame, ...modalProps } = props
   const [disabled, setDisabled] = useState(false)
   const navigate = useNavigate()
@@ -25,7 +25,7 @@ const GameCreateModal: FC<GameCreateModalProps> = (props) => {
 
   const { t } = useTranslation()
 
-  const onCreate = () => {
+  const onCreate = async () => {
     if (!title || end < start) {
       showNotification({
         color: 'red',
@@ -37,25 +37,24 @@ const GameCreateModal: FC<GameCreateModalProps> = (props) => {
     }
 
     setDisabled(true)
-    api.edit
-      .editAddGame({
+
+    try {
+      const res = await api.edit.editAddGame({
         title,
-        start: start.toJSON(),
-        end: end.toJSON(),
+        start: start.valueOf(),
+        end: end.valueOf(),
       })
-      .then((data) => {
-        showNotification({
-          color: 'teal',
-          message: t('admin.notification.games.created'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        onAddGame(data.data)
-        navigate(`/admin/games/${data.data.id}/info`)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.games.created'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((err) => {
-        showErrorNotification(err, t)
-        setDisabled(false)
-      })
+      onAddGame(res.data)
+      navigate(`/admin/games/${res.data.id}/info`)
+    } catch (e) {
+      showErrorMsg(e, t)
+      setDisabled(false)
+    }
   }
 
   return (
@@ -76,10 +75,7 @@ const GameCreateModal: FC<GameCreateModalProps> = (props) => {
             value={start.toDate()}
             clearable={false}
             onChange={(e) => {
-              const newDate = dayjs(e)
-                .hour(start.hour())
-                .minute(start.minute())
-                .second(start.second())
+              const newDate = dayjs(e).hour(start.hour()).minute(start.minute()).second(start.second())
               setStart(newDate)
               if (newDate && end < newDate) {
                 setEnd(newDate.add(2, 'h'))
@@ -124,10 +120,7 @@ const GameCreateModal: FC<GameCreateModalProps> = (props) => {
             value={end.format('HH:mm:ss')}
             onChange={(e) => {
               const newTime = e.target.value.split(':')
-              const newDate = dayjs(end)
-                .hour(Number(newTime[0]))
-                .minute(Number(newTime[1]))
-                .second(Number(newTime[2]))
+              const newDate = dayjs(end).hour(Number(newTime[0])).minute(Number(newTime[1])).second(Number(newTime[2]))
               setEnd(newDate)
             }}
             error={end < start}
@@ -144,5 +137,3 @@ const GameCreateModal: FC<GameCreateModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default GameCreateModal

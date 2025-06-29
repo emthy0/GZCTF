@@ -12,16 +12,16 @@ import {
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import LogoHeader from '@Components/LogoHeader'
+import { Link, useLocation, useNavigate } from 'react-router'
+import { LogoHeader } from '@Components/LogoHeader'
 import { AppControlProps } from '@Components/WithNavbar'
 import { LanguageMap, SupportedLanguages, useLanguage } from '@Utils/I18n'
 import { useIsMobile } from '@Utils/ThemeOverride'
-import { clearLocalCache } from '@Utils/useConfig'
-import { useLogOut, useUser } from '@Utils/useUser'
+import { clearLocalCache } from '@Hooks/useConfig'
+import { useLogOut, useUser } from '@Hooks/useUser'
 import classes from '@Styles/AppHeader.module.css'
 
-const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
+export const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
   const [opened, setOpened] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
@@ -55,24 +55,14 @@ const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
               ))}
             </Menu.Dropdown>
           </Menu>
-          <Menu
-            shadow="md"
-            opened={opened}
-            onClose={() => setOpened(false)}
-            width={200}
-            offset={13}
-          >
+          <Menu shadow="md" opened={opened} onClose={() => setOpened(false)} width={200} offset={13}>
             <Menu.Target>
               <Burger opened={opened} onClick={() => setOpened((o) => !o)} />
             </Menu.Target>
             <Menu.Dropdown>
               {user && !error ? (
                 <>
-                  <Menu.Item
-                    component={Link}
-                    to="/teams"
-                    leftSection={<Icon path={mdiAccountGroupOutline} size={1} />}
-                  >
+                  <Menu.Item component={Link} to="/teams" leftSection={<Icon path={mdiAccountGroupOutline} size={1} />}>
                     {t('common.tab.team')}
                   </Menu.Item>
                   <Menu.Item
@@ -82,11 +72,7 @@ const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
                   >
                     {t('common.tab.account.profile')}
                   </Menu.Item>
-                  <Menu.Item
-                    color="red"
-                    onClick={logout}
-                    leftSection={<Icon path={mdiLogout} size={1} />}
-                  >
+                  <Menu.Item color="red" onClick={logout} leftSection={<Icon path={mdiLogout} size={1} />}>
                     {t('common.tab.account.logout')}
                   </Menu.Item>
                 </>
@@ -112,10 +98,7 @@ const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
                 onClick={() => toggleColorScheme()}
               >
                 {t('common.tab.theme.switch_to', {
-                  theme:
-                    colorScheme === 'dark'
-                      ? t('common.tab.theme.light')
-                      : t('common.tab.theme.dark'),
+                  theme: colorScheme === 'dark' ? t('common.tab.theme.light') : t('common.tab.theme.dark'),
                 })}
               </Menu.Item>
               <Menu.Item onClick={clearLocalCache} leftSection={<Icon path={mdiCached} size={1} />}>
@@ -131,5 +114,3 @@ const AppHeader: FC<AppControlProps> = ({ openColorModal }) => {
     </AppShell.Header>
   )
 }
-
-export default AppHeader

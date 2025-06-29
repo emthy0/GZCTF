@@ -1,5 +1,5 @@
 ﻿using System.Threading.Channels;
-using GZCTF.Repositories;
+using GZCTF.Services.Cache.Handlers;
 
 namespace GZCTF.Services.Cache;
 
@@ -7,75 +7,101 @@ public class CacheHelper(ChannelWriter<CacheRequest> channelWriter)
 {
     public async Task FlushScoreboardCache(int gameId, CancellationToken token) =>
         await channelWriter.WriteAsync(ScoreboardCacheHandler.MakeCacheRequest(gameId), token);
+
+    public async Task FlushRecentGamesCache(CancellationToken token) =>
+        await channelWriter.WriteAsync(RecentGamesCacheHandler.MakeCacheRequest(), token);
+
+    public async Task FlushGameListCache(CancellationToken token) =>
+        await channelWriter.WriteAsync(GameListCacheHandler.MakeCacheRequest(), token);
 }
 
 /// <summary>
-/// 缓存标识
+/// Cache keys
 /// </summary>
 public static class CacheKey
 {
     /// <summary>
-    /// Favicon 缓存标识
+    /// Favicon
     /// </summary>
     public const string Favicon = "_Favicon";
 
     /// <summary>
-    /// 主页缓存标识
+    /// Index
     /// </summary>
     public const string Index = "_Index";
 
     /// <summary>
-    /// 积分榜缓存根标识
+    /// Scoreboard
     /// </summary>
     public const string ScoreBoardBase = "_ScoreBoard";
 
     /// <summary>
-    /// 比赛基础信息缓存
+    /// Recent games
     /// </summary>
-    public const string BasicGameInfo = "_BasicGameInfo";
+    public const string RecentGames = "_RecentGames";
 
     /// <summary>
-    /// 文章
+    /// The game list cache, latest 100 games
+    /// </summary>
+    public const string GameList = "_GameList";
+
+    /// <summary>
+    /// Posts
     /// </summary>
     public const string Posts = "_Posts";
 
     /// <summary>
-    /// 练习是否可用（题目总数不为空）
+    /// The cron job lock
+    /// </summary>
+    public const string CronJobLock = "_CronJobLock";
+
+    /// <summary>
+    /// Is exercise available
     /// </summary>
     public const string ExerciseAvailable = "_ExerciseAvailable";
 
     /// <summary>
-    /// 客户端配置
+    /// The client configuration
     /// </summary>
     public const string ClientConfig = "_ClientConfig";
 
     /// <summary>
-    /// 验证码配置
+    /// The captcha configuration
     /// </summary>
     public const string CaptchaConfig = "_CaptchaConfig";
 
     /// <summary>
-    /// 缓存更新锁
+    /// The cache update lock
     /// </summary>
-    public static string UpdateLock(string key) => $"_CacheUpdateLock_{key}";
+    public static string UpdateLock(string key) => $"_UpdateLock{key}";
 
     /// <summary>
-    /// 积分榜缓存
+    /// The last update time
+    /// </summary>
+    public static string LastUpdateTime(string key) => $"_LastUpdateTime_{key}";
+
+    /// <summary>
+    /// Scoreboard cache
     /// </summary>
     public static string ScoreBoard(int id) => $"_ScoreBoard_{id}";
 
     /// <summary>
-    /// 积分榜缓存
+    /// Scoreboard cache
     /// </summary>
     public static string ScoreBoard(string id) => $"_ScoreBoard_{id}";
 
     /// <summary>
-    /// 比赛通知缓存
+    /// Game notice cache
     /// </summary>
     public static string GameNotice(int id) => $"_GameNotice_{id}";
 
     /// <summary>
-    /// 容器连接数缓存
+    /// Container connection counter
     /// </summary>
     public static string ConnectionCount(Guid id) => $"_Container_Conn_{id}";
+
+    /// <summary>
+    /// HashPow cache
+    /// </summary>
+    public static string HashPow(string key) => $"_HP_{key}";
 }

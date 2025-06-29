@@ -4,6 +4,7 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC } from 'react'
 import { InlineMarkdown } from '@Components/MarkdownRenderer'
+import { useLanguage } from '@Utils/I18n'
 import { GameNotice } from '@Api'
 
 interface GameNoticeEditCardProps extends CardProps {
@@ -12,19 +13,16 @@ interface GameNoticeEditCardProps extends CardProps {
   onEdit: () => void
 }
 
-const GameNoticeEditCard: FC<GameNoticeEditCardProps> = ({
-  gameNotice,
-  onDelete,
-  onEdit,
-  ...props
-}) => {
+export const GameNoticeEditCard: FC<GameNoticeEditCardProps> = ({ gameNotice, onDelete, onEdit, ...props }) => {
+  const { locale } = useLanguage()
+
   return (
     <Card {...props} shadow="sm" p="sm">
       <Group justify="space-between" wrap="nowrap">
         <Stack gap={1}>
           <InlineMarkdown source={gameNotice.values.at(-1) || ''} />
           <Text size="xs" fw="bold" c="dimmed">
-            {dayjs(gameNotice.time).format('#YY/MM/DD HH:mm:ss')}
+            {dayjs(gameNotice.time).locale(locale).format('#SLL LTS')}
           </Text>
         </Stack>
         <Group justify="right" wrap="nowrap">
@@ -39,5 +37,3 @@ const GameNoticeEditCard: FC<GameNoticeEditCardProps> = ({
     </Card>
   )
 }
-
-export default GameNoticeEditCard

@@ -4,8 +4,8 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { useParams } from 'react-router'
+import { showErrorMsg } from '@Utils/Shared'
 import api, { GameNotice } from '@Api'
 
 interface GameNoticeEditModalProps extends ModalProps {
@@ -13,7 +13,7 @@ interface GameNoticeEditModalProps extends ModalProps {
   mutateGameNotice: (gameNotice: GameNotice) => void
 }
 
-const GameNoticeEditModal: FC<GameNoticeEditModalProps> = (props) => {
+export const GameNoticeEditModal: FC<GameNoticeEditModalProps> = (props) => {
   const { id } = useParams()
   const numId = parseInt(id ?? '-1')
   const { gameNotice, mutateGameNotice, ...modalProps } = props
@@ -26,7 +26,7 @@ const GameNoticeEditModal: FC<GameNoticeEditModalProps> = (props) => {
     setContent(gameNotice?.values.at(-1) || '')
   }, [gameNotice])
 
-  const onConfirm = () => {
+  const onConfirm = async () => {
     if (!content) {
       showNotification({
         color: 'red',
@@ -46,44 +46,22 @@ const GameNoticeEditModal: FC<GameNoticeEditModalProps> = (props) => {
 
     setDisabled(true)
 
-    if (gameNotice && !disabled) {
-      api.edit
-        .editUpdateGameNotice(numId, gameNotice.id, {
-          content: content,
-        })
-        .then((data) => {
-          showNotification({
-            color: 'teal',
-            message: t('admin.notification.games.notices.updated'),
-            icon: <Icon path={mdiCheck} size={1} />,
-          })
-          mutateGameNotice(data.data)
-          modalProps.onClose()
-        })
-        .catch((e) => showErrorNotification(e, t))
-        .finally(() => {
-          setDisabled(false)
-        })
-    } else {
-      api.edit
-        .editAddGameNotice(numId, {
-          content: content,
-        })
-        .then((data) => {
-          showNotification({
-            color: 'teal',
-            message: t('admin.notification.games.notices.created'),
-            icon: <Icon path={mdiCheck} size={1} />,
-          })
-          mutateGameNotice(data.data)
-          setDisabled(false)
-          modalProps.onClose()
-        })
-        .catch((e) => showErrorNotification(e, t))
-        .finally(() => {
-          setDisabled(false)
-          setContent('')
-        })
+    try {
+      const res = gameNotice
+        ? await api.edit.editUpdateGameNotice(numId, gameNotice.id, { content: content.trim() })
+        : await api.edit.editAddGameNotice(numId, { content: content.trim() })
+      showNotification({
+        color: 'teal',
+        message: t(`admin.notification.games.notices.${gameNotice ? 'updated' : 'created'}`),
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+      mutateGameNotice(res.data)
+      modalProps.onClose()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+      setContent('')
     }
   }
 
@@ -108,5 +86,3 @@ const GameNoticeEditModal: FC<GameNoticeEditModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default GameNoticeEditModal

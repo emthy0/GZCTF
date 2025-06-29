@@ -19,8 +19,8 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useUser } from '@Utils/useUser'
+import { showErrorMsg } from '@Utils/Shared'
+import { useUser } from '@Hooks/useUser'
 import api, { AdminUserInfoModel, Role, UserInfoModel } from '@Api'
 
 export const RoleColorMap = new Map<Role, string>([
@@ -35,7 +35,7 @@ interface UserEditModalProps extends ModalProps {
   mutateUser: (user: UserInfoModel) => void
 }
 
-const UserEditModal: FC<UserEditModalProps> = (props) => {
+export const UserEditModal: FC<UserEditModalProps> = (props) => {
   const { user, mutateUser, ...modalProps } = props
   const { user: self } = useUser()
 
@@ -49,25 +49,25 @@ const UserEditModal: FC<UserEditModalProps> = (props) => {
     setProfile({ ...user })
   }, [user])
 
-  const onChangeProfile = () => {
+  const onChangeProfile = async () => {
     if (!user.id) return
 
     setDisabled(true)
-    api.admin
-      .adminUpdateUserInfo(user.id, profile)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('admin.notification.users.updated'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutateUser({ ...user, ...profile })
-        modalProps.onClose()
+
+    try {
+      await api.admin.adminUpdateUserInfo(user.id, profile)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.users.updated'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setDisabled(false)
-      })
+      mutateUser({ ...user, ...profile })
+      modalProps.onClose()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (
@@ -189,5 +189,3 @@ const UserEditModal: FC<UserEditModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default UserEditModal

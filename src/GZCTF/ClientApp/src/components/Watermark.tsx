@@ -60,11 +60,8 @@ export interface WatermarkProps {
 /**
  * generate svg string for watermark
  */
-function generateSvg(
-  options: Required<Omit<WatermarkProps, 'wrapperStyle' | 'wrapperElement' | 'show'>>
-) {
-  const { text, textColor, textSize, fontFamily, lineHeight, multiline, opacity, gutter, rotate } =
-    options
+function generateSvg(options: Required<Omit<WatermarkProps, 'wrapperStyle' | 'wrapperElement' | 'show'>>) {
+  const { text, textColor, textSize, fontFamily, lineHeight, multiline, opacity, gutter, rotate } = options
   const rect = calcTextRenderedRect(text, textSize, fontFamily)
   const size = Math.sqrt(rect.width * rect.width + rect.height * rect.height) + gutter * 2
   const center = size / 2
@@ -79,9 +76,7 @@ function generateSvg(
 
   const textEl = `<text fill='${textColor}' x='50%' y='50%' font-size='${textSize}' text-anchor='middle' font-family='${fontFamily}' transform='rotate(${rotate} ${center} ${center})' opacity='${opacity}'>${textContent}</text>`
 
-  return `<svg width='${size}' height='${Math.ceil(
-    size / 3
-  )}' xmlns='http://www.w3.org/2000/svg'>${textEl}</svg>`
+  return `<svg width='${size}' height='${Math.ceil(size / 3)}' xmlns='http://www.w3.org/2000/svg'>${textEl}</svg>`
 }
 
 function calcTextRenderedRect(text: string, fontSize: number, fontFamily: string): DOMRect {
@@ -96,12 +91,12 @@ function calcTextRenderedRect(text: string, fontSize: number, fontFamily: string
   return rect
 }
 
-const Watermark: React.FC<React.PropsWithChildren<WatermarkProps>> = ({
+export const Watermark: React.FC<React.PropsWithChildren<WatermarkProps>> = ({
   show = true,
   text,
   textColor = '#cccccc',
   textSize = 24,
-  fontFamily = '"JetBrains Mono", "Ubuntu Mono", Courier, Consolas, monospace',
+  fontFamily = 'JetBrains Mono, ui-monospace, Monaco, Consolas, Courier New, monospace, sans-serif',
   opacity = 0.2,
   lineHeight = '1.2rem',
   multiline = false,
@@ -162,13 +157,10 @@ const Watermark: React.FC<React.PropsWithChildren<WatermarkProps>> = ({
     .map(([key, value]) => `${kebabCase(key)}:${value}`)
     .join(';')
 
-  const wrapperRef = useRef<HTMLDivElement>()
-  const watermarkRef = useRef<HTMLDivElement>()
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const watermarkRef = useRef<HTMLDivElement>(null)
 
-  const watermarkBox: (layers: number, child: HTMLDivElement) => HTMLDivElement = (
-    layers,
-    child
-  ) => {
+  const watermarkBox: (layers: number, child: HTMLDivElement) => HTMLDivElement = (layers, child) => {
     if (layers > 0) {
       const box = document.createElement('div')
       box.appendChild(child)
@@ -220,5 +212,3 @@ const Watermark: React.FC<React.PropsWithChildren<WatermarkProps>> = ({
     </Wrapper>
   )
 }
-
-export default Watermark

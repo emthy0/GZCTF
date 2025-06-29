@@ -15,14 +15,16 @@ import { useClipboard } from '@mantine/hooks'
 import { showNotification } from '@mantine/notifications'
 import { mdiCheck, mdiExclamationThick, mdiKey } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import { FC, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
 import { ErrorCodes } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
-import { useGameTeamInfo } from '@Utils/useGame'
+import { useGameTeamInfo } from '@Hooks/useGame'
+import misc from '@Styles/Misc.module.css'
 
-const TeamRank: FC<CardProps> = (props) => {
+export const TeamRank: FC<CardProps> = (props) => {
   const { id } = useParams()
   const numId = parseInt(id ?? '-1')
   const navigate = useNavigate()
@@ -33,7 +35,7 @@ const TeamRank: FC<CardProps> = (props) => {
 
   const { t } = useTranslation()
 
-  const solved = (teamInfo?.rank?.solvedCount ?? 0) / (teamInfo?.rank?.challenges?.length ?? 1)
+  const solved = (teamInfo?.rank?.solvedCount ?? 0) / (teamInfo?.challengeCount ?? 1)
 
   useEffect(() => {
     if (error?.status === ErrorCodes.GameEnded) {
@@ -73,9 +75,9 @@ const TeamRank: FC<CardProps> = (props) => {
               <Title order={3} lineClamp={1}>
                 {rank?.name ?? 'Team'}
               </Title>
-              {rank?.organization && (
+              {rank?.division && (
                 <Badge size="xs" variant="outline">
-                  {rank.organization}
+                  {rank.division}
                 </Badge>
               )}
             </Stack>
@@ -83,8 +85,7 @@ const TeamRank: FC<CardProps> = (props) => {
         </Group>
         <Group grow ta="center">
           {item(t('game.label.score_table.rank_total'), rank?.rank)}
-          {rank?.organization &&
-            item(t('game.label.score_table.rank_organization'), rank?.organizationRank)}
+          {rank?.division && item(t('game.label.score_table.rank_division'), rank?.divisionRank)}
           {item(t('game.label.score_table.score'), rank?.score)}
           {item(t('game.label.score_table.solved_count'), rank?.solvedCount)}
         </Group>
@@ -103,17 +104,10 @@ const TeamRank: FC<CardProps> = (props) => {
                 icon: <Icon path={mdiCheck} size={1} />,
               })
             }}
-            styles={(theme) => ({
-              innerInput: {
-                cursor: 'copy',
-                fontFamily: theme.fontFamilyMonospace,
-              },
-            })}
+            classNames={{ innerInput: cx(misc.cCopy, misc.ffmono) }}
           />
         )}
       </Stack>
     </Card>
   )
 }
-
-export default TeamRank

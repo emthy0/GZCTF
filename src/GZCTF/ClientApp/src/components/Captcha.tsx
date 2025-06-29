@@ -1,20 +1,22 @@
 import { Box, BoxProps, useMantineColorScheme } from '@mantine/core'
 import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile'
 import { forwardRef, useImperativeHandle, useRef } from 'react'
-import { GoogleReCaptchaProvider, useGoogleReCaptcha } from 'react-google-recaptcha-v3'
-import api, { CaptchaProvider } from '@Api'
+import { HashPow } from '@Components/HashPow'
+import { useCaptchaConfig } from '@Hooks/useConfig'
+import { CaptchaProvider } from '@Api'
 
 interface CaptchaProps extends BoxProps {
   action: string
 }
 
-interface CaptchaResult {
+export interface CaptchaResult {
   valid: boolean
   token?: string | null
 }
 
 export interface CaptchaInstance {
   getToken: () => Promise<CaptchaResult>
+  cleanUp?: (success?: boolean) => void
 }
 
 export const useCaptchaRef = () => {
@@ -25,47 +27,25 @@ export const useCaptchaRef = () => {
     return res ?? { valid: false }
   }
 
-  return { captchaRef, getToken } as const
+  const cleanUp = (success?: boolean) => {
+    captchaRef.current?.cleanUp?.(success)
+  }
+
+  return { captchaRef, getToken, cleanUp } as const
 }
 
-const ReCaptchaBox = forwardRef<CaptchaInstance, CaptchaProps>((props, ref) => {
-  const { action, ...others } = props
-  const { executeRecaptcha } = useGoogleReCaptcha()
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      getToken: async () => {
-        if (!executeRecaptcha) {
-          return { valid: false }
-        }
-
-        const token = await executeRecaptcha(action)
-        return { valid: !!token, token }
-      },
-    }),
-    [executeRecaptcha, action]
-  )
-
-  return <Box {...others} />
-})
-
-const Captcha = forwardRef<CaptchaInstance, CaptchaProps>((props, ref) => {
+export const Captcha = forwardRef<CaptchaInstance, CaptchaProps>((props, ref) => {
   const { action, ...others } = props
 
-  const { data: info, error } = api.info.useInfoGetClientCaptchaInfo({
-    refreshInterval: 0,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    refreshWhenHidden: false,
-    shouldRetryOnError: false,
-    refreshWhenOffline: false,
-  })
-
+  const { info, error } = useCaptchaConfig()
   const { colorScheme } = useMantineColorScheme()
   const type = info?.type ?? CaptchaProvider.None
+
+  const backendRef = useRef<CaptchaInstance>(null)
+
+  // warp it into CaptchaInstance if necessary in the future
   const turnstileRef = useRef<TurnstileInstance>(null)
-  const reCaptchaRef = useRef<CaptchaInstance>(null)
+
   const nonce = document.getElementById('nonce-container')?.getAttribute('data-nonce') ?? undefined
 
   useImperativeHandle(
@@ -76,42 +56,34 @@ const Captcha = forwardRef<CaptchaInstance, CaptchaProps>((props, ref) => {
           return { valid: false }
         }
 
+        if (type === CaptchaProvider.HashPow) {
+          return backendRef.current?.getToken() ?? { valid: false }
+        }
+
+        // following providers need siteKey
         if (!info?.siteKey || type === CaptchaProvider.None) {
           return { valid: true }
         }
 
-        if (type === CaptchaProvider.GoogleRecaptcha) {
-          const res = await reCaptchaRef.current?.getToken()
-          return res ?? { valid: false }
-        }
-
+        // cloudflare turnstile
         const token = turnstileRef.current?.getResponse()
         return { valid: !!token, token }
+      },
+      cleanUp: (success?: boolean) => {
+        if (type === CaptchaProvider.HashPow) {
+          backendRef.current?.cleanUp?.(success)
+        }
       },
     }),
     [error, info, type]
   )
 
-  if (error || !info?.siteKey || type === CaptchaProvider.None) {
-    return <Box {...others} />
+  if (type === CaptchaProvider.HashPow) {
+    return <HashPow ref={backendRef} />
   }
 
-  if (type === CaptchaProvider.GoogleRecaptcha) {
-    return (
-      <GoogleReCaptchaProvider
-        reCaptchaKey={info.siteKey}
-        scriptProps={{
-          nonce,
-        }}
-        container={{
-          parameters: {
-            theme: colorScheme == 'auto' ? undefined : colorScheme,
-          },
-        }}
-      >
-        <ReCaptchaBox ref={reCaptchaRef} action={action} {...others} />
-      </GoogleReCaptchaProvider>
-    )
+  if (error || !info?.siteKey || type === CaptchaProvider.None) {
+    return <Box {...others} />
   }
 
   return (
@@ -130,5 +102,3 @@ const Captcha = forwardRef<CaptchaInstance, CaptchaProps>((props, ref) => {
     </Box>
   )
 })
-
-export default Captcha

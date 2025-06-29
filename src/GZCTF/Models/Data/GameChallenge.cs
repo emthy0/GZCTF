@@ -7,46 +7,53 @@ namespace GZCTF.Models.Data;
 public class GameChallenge : Challenge
 {
     /// <summary>
-    /// 是否需要记录访问流量
+    /// Whether to record traffic
     /// </summary>
     public bool EnableTrafficCapture { get; set; }
 
     /// <summary>
-    /// 初始分数
+    /// Whether to disable blood bonus
+    /// </summary>
+    public bool DisableBloodBonus { get; set; }
+
+    /// <summary>
+    /// Initial score
     /// </summary>
     [Required]
     public int OriginalScore { get; set; } = 1000;
 
     /// <summary>
-    /// 最低分数比例
+    /// Minimum score rate
     /// </summary>
     [Required]
     [Range(0, 1)]
     public double MinScoreRate { get; set; } = 0.25;
 
     /// <summary>
-    /// 难度系数
+    /// Difficulty coefficient
     /// </summary>
     [Required]
     public double Difficulty { get; set; } = 5;
 
     /// <summary>
-    /// 当前题目分值
+    /// Current score of the challenge
     /// </summary>
     [NotMapped]
-    public int CurrentScore =>
-        AcceptedCount <= 1
+    public int CurrentScore
+    {
+        get => AcceptedCount <= 1
             ? OriginalScore
             : (int)Math.Floor(
                 OriginalScore * (MinScoreRate +
                                  (1.0 - MinScoreRate) * Math.Exp((1 - AcceptedCount) / Difficulty)
                 ));
+    }
 
     internal void Update(ChallengeUpdateModel model)
     {
         Title = model.Title ?? Title;
         Content = model.Content ?? Content;
-        Tag = model.Tag ?? Tag;
+        Category = model.Category ?? Category;
         Hints = model.Hints ?? Hints;
         IsEnabled = model.IsEnabled ?? IsEnabled;
         CPUCount = model.CPUCount ?? CPUCount;
@@ -58,8 +65,9 @@ public class GameChallenge : Challenge
         MinScoreRate = model.MinScoreRate ?? MinScoreRate;
         Difficulty = model.Difficulty ?? Difficulty;
         FileName = model.FileName ?? FileName;
+        DisableBloodBonus = model.DisableBloodBonus ?? DisableBloodBonus;
 
-        // only set FlagTemplate to null when it pass an empty string (but not null)
+        // only set FlagTemplate to null when pass an empty string (but not null)
         FlagTemplate = model.FlagTemplate is null ? FlagTemplate :
             string.IsNullOrWhiteSpace(model.FlagTemplate) ? null : model.FlagTemplate;
 
@@ -70,29 +78,29 @@ public class GameChallenge : Challenge
     #region Db Relationship
 
     /// <summary>
-    /// 提交
+    /// Submissions
     /// </summary>
     public List<Submission> Submissions { get; set; } = [];
 
     /// <summary>
-    /// 赛题实例
+    /// Challenge instances
     /// </summary>
     public List<GameInstance> Instances { get; set; } = [];
 
     /// <summary>
-    /// 激活赛题的队伍
+    /// Teams that activated the challenge
     /// </summary>
     public HashSet<Participation> Teams { get; set; } = [];
 
     /// <summary>
-    /// 比赛 Id
+    /// Game ID
     /// </summary>
     public int GameId { get; set; }
 
     /// <summary>
-    /// 比赛对象
+    /// Game object
     /// </summary>
-    public Game Game { get; set; } = default!;
+    public Game Game { get; set; } = null!;
 
     #endregion Db Relationship
 }

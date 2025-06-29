@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Threading.Channels;
+using Microsoft.IO;
 
 namespace GZCTF.Utils;
 
@@ -14,113 +15,131 @@ public static class ChannelService
     }
 }
 
+internal static class BufferHelper
+{
+    const int DefaultBufferSize = 4096;
+    private static readonly RecyclableMemoryStreamManager MemoryStreamManager = new();
+
+    internal static Stream GetTempStream(long? bufferSize, string? tag = null) =>
+        bufferSize switch
+        {
+            0 => MemoryStreamManager.GetStream(),
+            null => MemoryStreamManager.GetStream(tag, DefaultBufferSize),
+            <= 16 * 1024 * 1024 => MemoryStreamManager.GetStream(tag, (int)bufferSize),
+            _ => File.Create(Path.GetTempFileName(), DefaultBufferSize, FileOptions.DeleteOnClose)
+        };
+}
+
 /// <summary>
-/// 任务结果
+/// Task result
 /// </summary>
-/// <typeparam name="TResult">返回值类型</typeparam>
-/// <param name="Status">状态</param>
-/// <param name="Result">结果</param>
+/// <typeparam name="TResult">Return type</typeparam>
+/// <param name="Status">Status</param>
+/// <param name="Result">Result</param>
 public record TaskResult<TResult>(TaskStatus Status, TResult? Result = default);
 
 /// <summary>
-/// 请求响应
+/// Request response
 /// </summary>
-/// <param name="Title">响应信息</param>
-/// <param name="Status">状态码</param>
+/// <param name="Title">Response message</param>
+/// <param name="Status">Status code</param>
 public record RequestResponse(string Title, int Status = StatusCodes.Status400BadRequest);
 
 /// <summary>
-/// 请求响应
+/// Request response
 /// </summary>
-/// <param name="Title">响应信息</param>
-/// <param name="Data">数据</param>
-/// <param name="Status">状态码</param>
+/// <param name="Title">Response message</param>
+/// <param name="Data">Data</param>
+/// <param name="Status">Status code</param>
 public record RequestResponse<T>(string Title, T Data, int Status = StatusCodes.Status400BadRequest);
 
 /// <summary>
-/// 答案校验结果
+/// Answer verification result
 /// </summary>
-/// <param name="SubType">提交类型</param>
-/// <param name="AnsRes">提交 flag 判定结果</param>
+/// <param name="SubType">Submission type</param>
+/// <param name="AnsRes">Flag submission result</param>
 public record VerifyResult(SubmissionType SubType, AnswerResult AnsRes);
 
 /// <summary>
-/// 队伍信息
+/// Team information
 /// </summary>
-/// <param name="Id">队伍 ID</param>
-/// <param name="Name">队名</param>
-/// <param name="Avatar">队伍头像</param>
+/// <param name="Id">Team ID</param>
+/// <param name="Name">Team name</param>
+/// <param name="Avatar">Team avatar</param>
 public record TeamModel(int Id, string Name, string? Avatar)
 {
     internal static TeamModel FromTeam(Team team) => new(team.Id, team.Name, team.AvatarUrl);
 }
 
 /// <summary>
-/// 题目信息
+/// Challenge information
 /// </summary>
-/// <param name="Id">题目 ID</param>
-/// <param name="Title">题目名称</param>
-/// <param name="Tag">题目标签</param>
-public record ChallengeModel(int Id, string Title, ChallengeTag Tag)
+/// <param name="Id">Challenge ID</param>
+/// <param name="Title">Challenge title</param>
+/// <param name="Category">Challenge category</param>
+public record ChallengeModel(int Id, string Title, ChallengeCategory Category)
 {
-    internal static ChallengeModel FromChallenge(GameChallenge chal) => new(chal.Id, chal.Title, chal.Tag);
+    internal static ChallengeModel FromChallenge(GameChallenge chal) => new(chal.Id, chal.Title, chal.Category);
 }
 
 /// <summary>
-/// 队伍参与信息
+/// Team participation information
 /// </summary>
-/// <param name="Id">参与 Id</param>
-/// <param name="Team">队伍信息</param>
-/// <param name="Status">队伍参与状态</param>
-/// <param name="Organization">队伍所属组织</param>
-public record ParticipationModel(int Id, TeamModel Team, ParticipationStatus Status, string? Organization)
+/// <param name="Id">Participation ID</param>
+/// <param name="Team">Team information</param>
+/// <param name="Status">Team participation status</param>
+/// <param name="Division">Team division</param>
+public record ParticipationModel(int Id, TeamModel Team, ParticipationStatus Status, string? Division)
 {
     internal static ParticipationModel FromParticipation(Participation part) =>
-        new(part.Id, TeamModel.FromTeam(part.Team), part.Status, part.Organization);
+        new(part.Id, TeamModel.FromTeam(part.Team), part.Status, part.Division);
 }
 
 /// <summary>
-/// 列表响应
+/// List response
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public class ArrayResponse<T>(T[] array, int? tot = null)
     where T : class
 {
     /// <summary>
-    /// 数据
+    /// Data
     /// </summary>
     [Required]
     public T[] Data { get; set; } = array;
 
     /// <summary>
-    /// 数据长度
+    /// Data length
     /// </summary>
     [Required]
-    public int Length => Data.Length;
+    public int Length
+    {
+        get => Data.Length;
+    }
 
     /// <summary>
-    /// 总长度
+    /// Total length
     /// </summary>
     public int Total { get; set; } = tot ?? array.Length;
 }
 
 /// <summary>
-/// 文件记录
+/// File record
 /// </summary>
 public class FileRecord
 {
     /// <summary>
-    /// 文件名
+    /// File name
     /// </summary>
     public string FileName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 文件大小
+    /// File size
     /// </summary>
     public long Size { get; set; }
 
     /// <summary>
-    /// 文件修改日期
+    /// File modification date
     /// </summary>
     public DateTimeOffset UpdateTime { get; set; } = DateTimeOffset.Now;
 
@@ -133,7 +152,7 @@ public class FileRecord
 }
 
 /// <summary>
-/// 三血加分
+/// Blood bonus
 /// </summary>
 public readonly struct BloodBonus(long init = BloodBonus.DefaultValue)
 {
@@ -150,17 +169,38 @@ public readonly struct BloodBonus(long init = BloodBonus.DefaultValue)
         return new(value);
     }
 
-    public long FirstBlood => (Val >> 20) & 0x3ff;
+    public long FirstBlood
+    {
+        get => (Val >> 20) & 0x3ff;
+    }
 
-    public float FirstBloodFactor => FirstBlood / 1000f + 1.0f;
+    public float FirstBloodFactor
+    {
+        get => FirstBlood / 1000f + 1.0f;
+    }
 
-    public long SecondBlood => (Val >> 10) & 0x3ff;
+    public long SecondBlood
+    {
+        get => (Val >> 10) & 0x3ff;
+    }
 
-    public float SecondBloodFactor => SecondBlood / 1000f + 1.0f;
+    public float SecondBloodFactor
+    {
+        get => SecondBlood / 1000f + 1.0f;
+    }
 
-    public long ThirdBlood => Val & 0x3ff;
+    public long ThirdBlood
+    {
+        get => Val & 0x3ff;
+    }
 
-    public float ThirdBloodFactor => ThirdBlood / 1000f + 1.0f;
+    public float ThirdBloodFactor
+    {
+        get => ThirdBlood / 1000f + 1.0f;
+    }
 
-    public bool NoBonus => Val == 0;
+    public bool NoBonus
+    {
+        get => Val == 0;
+    }
 }

@@ -3,49 +3,49 @@
 namespace GZCTF.Models.Request.Game;
 
 /// <summary>
-/// 题目详细信息
+/// Challenge detailed information
 /// </summary>
 public class ChallengeDetailModel
 {
     /// <summary>
-    /// 题目 Id
+    /// Challenge ID
     /// </summary>
     public int Id { get; set; }
 
     /// <summary>
-    /// 题目名称
+    /// Challenge title
     /// </summary>
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// 题目内容
+    /// Challenge content
     /// </summary>
     public string Content { get; set; } = string.Empty;
 
     /// <summary>
-    /// 题目标签
+    /// Challenge category
     /// </summary>
-    public ChallengeTag Tag { get; set; } = ChallengeTag.Misc;
+    public ChallengeCategory Category { get; set; } = ChallengeCategory.Misc;
 
     /// <summary>
-    /// 题目提示
+    /// Challenge hints
     /// </summary>
     public List<string>? Hints { get; set; }
 
     /// <summary>
-    /// 题目当前分值
+    /// Current score of the challenge
     /// </summary>
     public int Score { get; set; }
 
     /// <summary>
-    /// 题目类型
+    /// Challenge type
     /// </summary>
     public ChallengeType Type { get; set; } = ChallengeType.StaticAttachment;
 
     /// <summary>
-    /// Flag 上下文
+    /// Flag context
     /// </summary>
-    public ClientFlagContext Context { get; set; } = default!;
+    public ClientFlagContext Context { get; set; } = null!;
 
     internal static ChallengeDetailModel FromInstance(GameInstance gameInstance) =>
         new()
@@ -54,7 +54,7 @@ public class ChallengeDetailModel
             Content = gameInstance.Challenge.Content,
             Hints = gameInstance.Challenge.Hints,
             Score = gameInstance.Challenge.CurrentScore,
-            Tag = gameInstance.Challenge.Tag,
+            Category = gameInstance.Challenge.Category,
             Title = gameInstance.Challenge.Title,
             Type = gameInstance.Challenge.Type,
             Context = new()

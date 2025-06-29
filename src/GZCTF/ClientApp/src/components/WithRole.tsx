@@ -1,7 +1,7 @@
 import { Center, Loader } from '@mantine/core'
 import React, { FC, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { useUserRole } from '@Utils/useUser'
+import { useLocation, useNavigate } from 'react-router'
+import { useUserRole } from '@Hooks/useUser'
 import { Role } from '@Api'
 
 interface WithRoleProps {
@@ -19,7 +19,7 @@ export const RoleMap = new Map<Role, number>([
 export const RequireRole = (requiredRole: Role, role?: Role | null) =>
   RoleMap.get(role ?? Role.User)! >= RoleMap.get(requiredRole)!
 
-const WithRole: FC<WithRoleProps> = ({ requiredRole, children }) => {
+export const WithRole: FC<WithRoleProps> = ({ requiredRole, children }) => {
   const { role, error } = useUserRole()
   const navigate = useNavigate()
   const location = useLocation()
@@ -27,8 +27,9 @@ const WithRole: FC<WithRoleProps> = ({ requiredRole, children }) => {
   const required = RoleMap.get(requiredRole)!
 
   useEffect(() => {
-    if (error && error.status === 401)
+    if (error && error.status === 401) {
       navigate(`/account/login?from=${location.pathname}`, { replace: true })
+    }
 
     if (!role) return
 
@@ -47,5 +48,3 @@ const WithRole: FC<WithRoleProps> = ({ requiredRole, children }) => {
 
   return <>{children}</>
 }
-
-export default WithRole

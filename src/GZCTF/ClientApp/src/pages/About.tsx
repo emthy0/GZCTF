@@ -1,28 +1,20 @@
-import {
-  Anchor,
-  Badge,
-  Center,
-  Group,
-  HoverCard,
-  Stack,
-  Text,
-  Title,
-  useMantineTheme,
-} from '@mantine/core'
+import { Anchor, Badge, Center, Group, HoverCard, Stack, Text, Title, useMantineTheme } from '@mantine/core'
 import { FC } from 'react'
 import { useTranslation } from 'react-i18next'
-import WithNavBar from '@Components/WithNavbar'
-import MainIcon from '@Components/icon/MainIcon'
-import { useConfig, ValidatedRepoMeta } from '@Utils/useConfig'
-import { usePageTitle } from '@Utils/usePageTitle'
+import { WithNavBar } from '@Components/WithNavbar'
+import { MainIcon } from '@Components/icon/MainIcon'
+import { useConfig, ValidatedRepoMeta } from '@Hooks/useConfig'
+import { usePageTitle } from '@Hooks/usePageTitle'
+import classes from '@Styles/About.module.css'
 import logoClasses from '@Styles/LogoHeader.module.css'
-import classes from './About.module.css'
+import misc from '@Styles/Misc.module.css'
 
 const About: FC = () => {
   const { config } = useConfig()
-  const { repo, valid, rawTag: tag, sha, buildtime } = ValidatedRepoMeta()
+  const { repo, valid, rawTag: tag, sha, buildTime } = ValidatedRepoMeta()
   const { t } = useTranslation()
   const theme = useMantineTheme()
+  const shortSha = `#${sha.substring(0, 8)}`
 
   usePageTitle(t('common.title.about'))
 
@@ -43,15 +35,8 @@ const About: FC = () => {
         <Group justify="right">
           <HoverCard shadow="md" position="top-end" withArrow openDelay={200} closeDelay={400}>
             <HoverCard.Target>
-              <Badge
-                onClick={() => window.open(repo, '_blank')}
-                style={{
-                  cursor: 'pointer',
-                }}
-                size="lg"
-                variant="outline"
-              >
-                © 2022-Now GZTime {valid ? `#${sha.substring(0, 6)}` : ''}
+              <Badge onClick={() => window.open(repo, '_blank')} className={misc.cPointer} size="lg" variant="outline">
+                © 2022-Now GZTime {valid ? shortSha : ''}
               </Badge>
             </HoverCard.Target>
             <HoverCard.Dropdown>
@@ -63,13 +48,7 @@ const About: FC = () => {
                       GZ<span className={logoClasses.brand}>::</span>CTF
                     </Title>
                     <Group ml="-18px" mt="-5px">
-                      <Anchor
-                        href="https://github.com/GZTimeWalker"
-                        c="dimmed"
-                        size="sm"
-                        fw={500}
-                        lh={1}
-                      >
+                      <Anchor href="https://github.com/GZTimeWalker" c="dimmed" size="sm" fw={500} lh={1}>
                         @GZTimeWalker
                       </Anchor>
                       <Badge
@@ -77,7 +56,7 @@ const About: FC = () => {
                         color={valid ? theme.primaryColor : 'alert'}
                         size="xs"
                       >
-                        {valid ? `${tag}#${sha.substring(0, 6)}` : 'UNOFFICIAL'}
+                        {valid ? `${tag}${shortSha}` : 'UNOFFICIAL'}
                       </Badge>
                     </Group>
                   </Stack>
@@ -85,7 +64,7 @@ const About: FC = () => {
                 <Group gap="xs">
                   <Text size="xs" fw={500} c="dimmed" ff="monospace">
                     {valid
-                      ? `Built at ${buildtime.format('YYYY-MM-DDTHH:mm:ssZ')}`
+                      ? `Built at ${buildTime.format('YYYY-MM-DDTHH:mm:ssZ')}`
                       : 'This release is not officially built'}
                   </Text>
                 </Group>

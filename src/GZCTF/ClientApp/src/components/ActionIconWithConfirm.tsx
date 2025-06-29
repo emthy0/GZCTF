@@ -1,16 +1,8 @@
-import {
-  ActionIcon,
-  Button,
-  Group,
-  MantineColor,
-  MantineSpacing,
-  Popover,
-  Stack,
-  Text,
-} from '@mantine/core'
+import { ActionIcon, Button, Group, MantineColor, MantineSpacing, Popover, Stack, Text } from '@mantine/core'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import misc from '@Styles/Misc.module.css'
 
 export interface ActionIconWithConfirmProps {
   iconPath: string
@@ -42,26 +34,12 @@ export const ActionIconWithConfirm: FC<ActionIconWithConfirmProps> = (props) => 
       </Popover.Target>
       <Popover.Dropdown>
         <Stack align="center" gap={6}>
-          <Text
-            size="sm"
-            fw="bold"
-            h="auto"
-            ta="center"
-            style={{
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+          <Text size="sm" fw="bold" h="auto" ta="center" className={misc.wsPreWrap}>
             {props.message}
           </Text>
 
           <Group w="100%" justify="space-between">
-            <Button
-              size="xs"
-              py={2}
-              variant="outline"
-              disabled={props.disabled}
-              onClick={() => setOpened(false)}
-            >
+            <Button size="xs" py={2} variant="outline" disabled={props.disabled} onClick={() => setOpened(false)}>
               {t('common.modal.cancel')}
             </Button>
             <Button

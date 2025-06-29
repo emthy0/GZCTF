@@ -5,20 +5,17 @@ import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { showErrorMsg } from '@Utils/Shared'
 import classes from '@Styles/PDFViewer.module.css'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString()
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
 interface PDFViewerProps {
   url?: string
   height?: number | string
 }
 
-const PDFViewer: FC<PDFViewerProps> = ({ url, height }) => {
+export const PDFViewer: FC<PDFViewerProps> = ({ url, height }) => {
   const [numPages, setNumPages] = useState(0)
   const { t } = useTranslation()
 
@@ -36,7 +33,7 @@ const PDFViewer: FC<PDFViewerProps> = ({ url, height }) => {
           <Text>{t('admin.content.games.writeups.pdf_fallback')}</Text>
         </Center>
       }
-      onError={(e) => showErrorNotification(e, t)}
+      onError={(e) => showErrorMsg(e, t)}
     >
       <Box
         className={classes.box}
@@ -51,17 +48,12 @@ const PDFViewer: FC<PDFViewerProps> = ({ url, height }) => {
             onLoadSuccess={({ numPages }) => {
               setNumPages(numPages)
             }}
-            onLoadError={(e) => showErrorNotification(e, t)}
+            onLoadError={(e) => showErrorMsg(e, t)}
           >
             <Stack ref={ref}>
               {Array.from(Array.from({ length: numPages }), (_, index) => (
                 <Paper className={classes.paper} key={`page_${index + 1}`}>
-                  <Page
-                    width={renderWidth}
-                    scale={ratio}
-                    pageNumber={index + 1}
-                    renderAnnotationLayer={false}
-                  />
+                  <Page width={renderWidth} scale={ratio} pageNumber={index + 1} renderAnnotationLayer={false} />
                 </Paper>
               ))}
             </Stack>
@@ -71,5 +63,3 @@ const PDFViewer: FC<PDFViewerProps> = ({ url, height }) => {
     </ErrorBoundary>
   )
 }
-
-export default PDFViewer

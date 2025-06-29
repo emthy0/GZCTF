@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import {
   Badge,
   Box,
@@ -29,10 +28,13 @@ import dayjs from 'dayjs'
 import { FC, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ActionIconWithConfirm } from '@Components/ActionIconWithConfirm'
-import AdminPage from '@Components/admin/AdminPage'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useChallengeTagLabelMap, getProxyUrl } from '@Utils/Shared'
-import api, { ChallengeModel, ChallengeTag, TeamModel } from '@Api'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { useLanguage } from '@Utils/I18n'
+import { showErrorMsg } from '@Utils/Shared'
+import { useChallengeCategoryLabelMap, getProxyUrl } from '@Utils/Shared'
+import api, { ChallengeModel, ChallengeCategory, TeamModel } from '@Api'
+import classes from '@Styles/Instances.module.css'
+import misc from '@Styles/Misc.module.css'
 import tableClasses from '@Styles/Table.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
 
@@ -44,7 +46,7 @@ const SelectTeamItem: SelectProps['renderOption'] = ({ option }) => {
 
   return (
     <Group {...others} gap={0} wrap="nowrap">
-      <Text fw={500} size="sm" lineClamp={1} style={{ wordBreak: 'break-all' }}>
+      <Text fw={500} size="sm" lineClamp={1} className={misc.wordBreakAll}>
         <Text span c="dimmed">
           {`#${id} `}
         </Text>
@@ -55,15 +57,15 @@ const SelectTeamItem: SelectProps['renderOption'] = ({ option }) => {
 }
 
 const SelectChallengeItem: SelectProps['renderOption'] = ({ option }) => {
-  const { title, id, tag } = option as SelectChallengeItemProps
-  const challengeTagLabelMap = useChallengeTagLabelMap()
-  const tagInfo = challengeTagLabelMap.get(tag ?? ChallengeTag.Misc)!
+  const { title, id, category } = option as SelectChallengeItemProps
+  const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
+  const cateData = challengeCategoryLabelMap.get(category ?? ChallengeCategory.Misc)!
   const theme = useMantineTheme()
 
   return (
     <Group wrap="nowrap" gap="sm">
-      <Icon color={theme.colors[tagInfo.color][4]} path={tagInfo.icon} size={1} />
-      <Text fw={500} size="sm" lineClamp={1} style={{ wordBreak: 'break-all' }}>
+      <Icon color={theme.colors[cateData.color][4]} path={cateData.icon} size={1} />
+      <Text fw={500} size="sm" lineClamp={1} className={misc.wordBreakAll}>
         <Text span c="dimmed">
           {`#${id} `}
         </Text>
@@ -83,21 +85,18 @@ const Instances: FC = () => {
   const [challenge, setChallenge] = useState<ChallengeModel[]>()
   const [disabled, setDisabled] = useState(false)
   const clipBoard = useClipboard()
-  const challengeTagLabelMap = useChallengeTagLabelMap()
+  const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
 
   const { t } = useTranslation()
+  const { locale } = useLanguage()
 
   useEffect(() => {
     if (instances) {
-      const teams = [
-        ...new Map(instances.data.map((instance) => [instance.team!.id, instance.team!])).values(),
-      ]
+      const teams = [...new Map(instances.data.map((instance) => [instance.team!.id, instance.team!])).values()]
       setTeams(teams)
 
       const challenges = [
-        ...new Map(
-          instances.data.map((instance) => [instance.challenge!.id, instance.challenge!])
-        ).values(),
+        ...new Map(instances.data.map((instance) => [instance.challenge!.id, instance.challenge!])).values(),
       ]
       setChallenge(challenges)
     }
@@ -118,9 +117,7 @@ const Instances: FC = () => {
     }
 
     if (selectedChallengeId) {
-      filtered = filtered.filter(
-        (instance) => instance.challenge?.id === Number(selectedChallengeId)
-      )
+      filtered = filtered.filter((instance) => instance.challenge?.id === Number(selectedChallengeId))
     }
 
     setFilteredInstances(filtered)
@@ -139,14 +136,15 @@ const Instances: FC = () => {
         icon: <Icon path={mdiCheck} size={1} />,
       })
 
-      instances &&
+      if (instances) {
         mutate({
           total: (instances.total ?? instances.length) - 1,
           length: instances.length - 1,
           data: instances.data.filter((instance) => instance.containerGuid !== instanceGuid),
         })
+      }
     } catch (e: any) {
-      showErrorNotification(e, t)
+      showErrorMsg(e, t)
     } finally {
       setDisabled(false)
     }
@@ -168,11 +166,7 @@ const Instances: FC = () => {
               leftSection={<Icon path={mdiAccountGroupOutline} size={1} />}
               nothingFoundMessage={t('admin.placeholder.instances.teams.not_found')}
               renderOption={SelectTeamItem}
-              data={
-                teams?.map(
-                  (team) => ({ value: String(team.id), label: team.name, ...team }) as ComboboxItem
-                ) ?? []
-              }
+              data={teams?.map((team) => ({ value: String(team.id), label: team.name, ...team }) as ComboboxItem) ?? []}
             />
             <Select
               w="48%"
@@ -222,26 +216,12 @@ const Instances: FC = () => {
             <Table.Tbody>
               {filteredInstances &&
                 filteredInstances.map((inst) => {
-                  const color = challengeTagLabelMap.get(
-                    inst.challenge?.tag ?? ChallengeTag.Misc
-                  )!.color
+                  const color = challengeCategoryLabelMap.get(inst.challenge?.category ?? ChallengeCategory.Misc)!.color
                   return (
                     <Table.Tr key={inst.containerGuid}>
                       <Table.Td>
                         <Box w="100%" h="100%">
-                          <Input
-                            variant="unstyled"
-                            value={inst.team?.name ?? 'Team'}
-                            readOnly
-                            sx={() => ({
-                              input: {
-                                userSelect: 'none',
-                                lineHeight: 1,
-                                fontWeight: 700,
-                                height: '1.5rem',
-                              },
-                            })}
-                          />
+                          <Input variant="unstyled" value={inst.team?.name ?? 'Team'} readOnly classNames={classes} />
                         </Box>
                       </Table.Td>
                       <Table.Td>
@@ -250,25 +230,18 @@ const Instances: FC = () => {
                             variant="unstyled"
                             value={inst.challenge?.title ?? 'Challenge'}
                             readOnly
-                            sx={() => ({
-                              input: {
-                                userSelect: 'none',
-                                lineHeight: 1,
-                                fontWeight: 700,
-                                height: '1.5rem',
-                              },
-                            })}
+                            classNames={classes}
                           />
                         </Box>
                       </Table.Td>
                       <Table.Td>
                         <Group wrap="nowrap" gap="xs">
                           <Badge size="xs" color={color} variant="dot">
-                            {dayjs(inst.startedAt).format('MM/DD HH:mm')}
+                            {dayjs(inst.startedAt).locale(locale).format('SL HH:mm')}
                           </Badge>
                           <Icon path={mdiChevronTripleRight} size={1} />
                           <Badge size="xs" color={color} variant="dot">
-                            {dayjs(inst.expectStopAt).format('MM/DD HH:mm')}
+                            {dayjs(inst.expectStopAt).locale(locale).format('SL HH:mm')}
                           </Badge>
                         </Group>
                       </Table.Td>
@@ -287,9 +260,7 @@ const Instances: FC = () => {
                               fz="sm"
                               className={tableClasses.clickable}
                               onClick={() => {
-                                clipBoard.copy(
-                                  inst.containerGuid && getProxyUrl(inst.containerGuid)
-                                )
+                                clipBoard.copy(inst.containerGuid && getProxyUrl(inst.containerGuid))
                                 showNotification({
                                   color: 'teal',
                                   title: t('admin.notification.instances.url_copied.title'),
@@ -304,12 +275,7 @@ const Instances: FC = () => {
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Tooltip
-                          label={t('common.button.copy')}
-                          withArrow
-                          position="left"
-                          classNames={tooltipClasses}
-                        >
+                        <Tooltip label={t('common.button.copy')} withArrow position="left" classNames={tooltipClasses}>
                           <Text
                             size="sm"
                             c="dimmed"
@@ -327,7 +293,7 @@ const Instances: FC = () => {
                             }}
                           >
                             {`${inst.ip}:`}
-                            <Text span fw="bold" c="white">
+                            <Text span fw="bold">
                               {inst.port}
                             </Text>
                           </Text>

@@ -17,30 +17,30 @@ import {
 import { showNotification } from '@mantine/notifications'
 import { mdiCheck, mdiExclamationThick, mdiFileDocumentOutline, mdiFileHidden } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import dayjs from 'dayjs'
 import { FC, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import Markdown from '@Components/MarkdownRenderer'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { Markdown } from '@Components/MarkdownRenderer'
+import { useLanguage } from '@Utils/I18n'
+import { showErrorMsg } from '@Utils/Shared'
 import { HunamizeSize } from '@Utils/Shared'
-import { OnceSWRConfig } from '@Utils/useConfig'
+import { OnceSWRConfig } from '@Hooks/useConfig'
 import api from '@Api'
+import misc from '@Styles/Misc.module.css'
 import uploadClasses from '@Styles/Upload.module.css'
 
 interface WriteupSubmitModalProps extends ModalProps {
   gameId: number
-  writeupDeadline: string
+  writeupDeadline: number
 }
 
-export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({
-  gameId,
-  writeupDeadline: wpddl,
-  ...props
-}) => {
+export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({ gameId, writeupDeadline: wpddl, ...props }) => {
   const { data, mutate } = api.game.useGameGetWriteup(gameId, OnceSWRConfig)
 
   const theme = useMantineTheme()
   const [ddl, setDdl] = useState(dayjs(wpddl))
+  const { locale } = useLanguage()
   const [disabled, setDisabled] = useState(dayjs().isAfter(wpddl))
   const [progress, setProgress] = useState(0)
   const noteColor = data?.submitted ? theme.colors.teal[5] : theme.colors.red[5]
@@ -52,14 +52,14 @@ export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({
     setDisabled(dayjs().isAfter(wpddl))
   }, [wpddl])
 
-  const onUpload = (file: File | null) => {
+  const onUpload = async (file: File | null) => {
     if (!file || disabled) return
 
     setProgress(0)
     setDisabled(true)
 
-    api.game
-      .gameSubmitWriteup(
+    try {
+      await api.game.gameSubmitWriteup(
         gameId,
         {
           file,
@@ -70,21 +70,20 @@ export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({
           },
         }
       )
-      .then(() => {
-        setProgress(100)
-        showNotification({
-          color: 'teal',
-          message: t('game.notification.writeup.submitted'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutate()
-        setDisabled(false)
+      setProgress(100)
+      showNotification({
+        color: 'teal',
+        message: t('game.notification.writeup.submitted'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((err) => showErrorNotification(err, t))
-      .finally(() => {
-        setProgress(0)
-        setDisabled(false)
-      })
+      mutate()
+      setDisabled(false)
+    } catch (err) {
+      showErrorMsg(err, t)
+    } finally {
+      setProgress(0)
+      setDisabled(false)
+    }
   }
 
   return (
@@ -93,47 +92,29 @@ export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({
         <Group w="100%" justify="space-between">
           <Title order={4}>{t('game.content.writeup.title')}</Title>
           <Group gap={4}>
-            <Icon
-              path={data?.submitted ? mdiCheck : mdiExclamationThick}
-              size={0.9}
-              color={noteColor}
-            />
+            <Icon path={data?.submitted ? mdiCheck : mdiExclamationThick} size={0.9} color={noteColor} />
             <Text fw={600} size="md" c={noteColor}>
-              {data?.submitted
-                ? t('game.content.writeup.submitted')
-                : t('game.content.writeup.unsubmitted')}
+              {data?.submitted ? t('game.content.writeup.submitted') : t('game.content.writeup.unsubmitted')}
             </Text>
           </Group>
         </Group>
       }
       {...props}
-      styles={{
-        ...props.styles,
-        header: {
-          margin: 0,
-        },
-        title: {
-          width: '100%',
-          margin: 0,
-        },
+      classNames={{
+        header: misc.m0,
+        title: cx(misc.w100, misc.m0),
       }}
     >
       <Stack gap="xs" mt={0}>
         <Divider />
         <Title order={5}>{t('game.content.writeup.instructions.title')}</Title>
-        <List
-          styles={{
-            itemWrapper: {
-              maxWidth: 'calc(100% - 2rem)',
-            },
-          }}
-        >
+        <List classNames={{ itemWrapper: misc.listItemWrapper }}>
           <List.Item>
             <Text>
               <Trans
                 i18nKey="game.content.writeup.instructions.deadline"
                 values={{
-                  datetime: ddl.format(t('game.content.writeup.instructions.datetime_format')),
+                  datetime: ddl.locale(locale).format('LL LTS'),
                 }}
               >
                 _
@@ -218,5 +199,3 @@ export const WriteupSubmitModal: FC<WriteupSubmitModalProps> = ({
     </Modal>
   )
 }
-
-export default WriteupSubmitModal

@@ -1,13 +1,4 @@
-import {
-  Button,
-  Group,
-  GroupProps,
-  LoadingOverlay,
-  Stack,
-  Tabs,
-  useMantineColorScheme,
-  useMantineTheme,
-} from '@mantine/core'
+import { Button, Group, GroupProps, LoadingOverlay, Stack, Tabs } from '@mantine/core'
 import {
   mdiAccountGroupOutline,
   mdiBullhornOutline,
@@ -19,8 +10,10 @@ import {
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import AdminPage from '@Components/admin/AdminPage'
+import { useLocation, Link, useNavigate, useParams } from 'react-router'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { DEFAULT_LOADING_OVERLAY } from '@Utils/Shared'
+import misc from '@Styles/Misc.module.css'
 
 export interface GameEditTabProps extends React.PropsWithChildren {
   head?: React.ReactNode
@@ -30,7 +23,7 @@ export interface GameEditTabProps extends React.PropsWithChildren {
   backUrl?: string
 }
 
-const WithGameEditTab: FC<GameEditTabProps> = ({
+export const WithGameEditTab: FC<GameEditTabProps> = ({
   children,
   isLoading,
   contentPos,
@@ -41,8 +34,6 @@ const WithGameEditTab: FC<GameEditTabProps> = ({
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams()
-  const theme = useMantineTheme()
-  const { colorScheme } = useMantineColorScheme()
   const { t } = useTranslation()
 
   const pages = [
@@ -73,9 +64,10 @@ const WithGameEditTab: FC<GameEditTabProps> = ({
         <>
           <Button
             w="9rem"
-            styles={{ inner: { justifyContent: 'space-between' } }}
+            component={Link}
+            classNames={{ inner: misc.justifyBetween }}
             leftSection={<Icon path={mdiKeyboardBackspace} size={1} />}
-            onClick={() => navigate(backUrl ?? '/admin/games')}
+            to={backUrl ?? '/admin/games'}
           >
             {t('admin.button.back')}
           </Button>
@@ -90,35 +82,21 @@ const WithGameEditTab: FC<GameEditTabProps> = ({
           orientation="vertical"
           value={activeTab}
           onChange={(value) => value && navigate(`/admin/games/${id}/${value}`)}
-          styles={{
-            root: {
-              width: '9rem',
-            },
-            list: {
-              width: '9rem',
-            },
+          classNames={{
+            root: misc.w9rem,
+            list: misc.w9rem,
           }}
         >
           <Tabs.List>
             {pages.map((page) => (
-              <Tabs.Tab
-                key={page.path}
-                leftSection={<Icon path={page.icon} size={1} />}
-                value={page.path}
-              >
+              <Tabs.Tab key={page.path} leftSection={<Icon path={page.icon} size={1} />} value={page.path}>
                 {page.title}
               </Tabs.Tab>
             ))}
           </Tabs.List>
         </Tabs>
         <Stack w="calc(100% - 10rem)" pos="relative">
-          <LoadingOverlay
-            visible={isLoading ?? false}
-            overlayProps={{
-              backgroundOpacity: 1,
-              color: colorScheme === 'dark' ? theme.colors.gray[7] : theme.colors.light[2],
-            }}
-          />
+          <LoadingOverlay visible={isLoading ?? false} overlayProps={DEFAULT_LOADING_OVERLAY} />
 
           {children}
         </Stack>
@@ -126,5 +104,3 @@ const WithGameEditTab: FC<GameEditTabProps> = ({
     </AdminPage>
   )
 }
-
-export default WithGameEditTab

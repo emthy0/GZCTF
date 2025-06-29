@@ -6,30 +6,35 @@ namespace GZCTF.Models.Request.Game;
 public class GameDetailModel
 {
     /// <summary>
-    /// 题目信息
+    /// Challenge information
     /// </summary>
-    public Dictionary<ChallengeTag, IEnumerable<ChallengeInfo>> Challenges { get; set; } = new();
+    public Dictionary<ChallengeCategory, IEnumerable<ChallengeInfo>> Challenges { get; set; } = new();
 
     /// <summary>
-    /// 积分榜信息
+    /// Number of challenges
+    /// </summary>
+    public int ChallengeCount { get; set; }
+
+    /// <summary>
+    /// Scoreboard information
     /// </summary>
     [JsonPropertyName("rank")]
     public ScoreboardItem? ScoreboardItem { get; set; }
 
     /// <summary>
-    /// 队伍 Token
+    /// Team token
     /// </summary>
     [Required]
     public string TeamToken { get; set; } = string.Empty;
 
     /// <summary>
-    /// 是否需要提交 Writeup
+    /// Whether writeup submission is required
     /// </summary>
     [Required]
     public bool WriteupRequired { get; set; } = false;
 
     /// <summary>
-    /// Writeup 提交截止时间
+    /// Writeup submission deadline
     /// </summary>
     [Required]
     public DateTimeOffset WriteupDeadline { get; set; } = DateTimeOffset.FromUnixTimeSeconds(0);

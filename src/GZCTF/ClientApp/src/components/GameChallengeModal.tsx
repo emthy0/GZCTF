@@ -5,114 +5,128 @@ import { mdiCheck, mdiClose, mdiLoading } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import ChallengeModal from '@Components/ChallengeModal'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { ChallengeTagItemProps } from '@Utils/Shared'
-import { OnceSWRConfig } from '@Utils/useConfig'
-import api, { AnswerResult, ChallengeType } from '@Api'
+import { ChallengeModal } from '@Components/ChallengeModal'
+import { encryptApiData } from '@Utils/Crypto'
+import { showErrorMsg } from '@Utils/Shared'
+import { ChallengeCategoryItemProps } from '@Utils/Shared'
+import { useConfig } from '@Hooks/useConfig'
+import api, { AnswerResult, ChallengeType, SubmissionType } from '@Api'
 
 interface GameChallengeModalProps extends ModalProps {
   gameId: number
+  gameTitle: string
   gameEnded: boolean
-  tagData: ChallengeTagItemProps
+  cateData: ChallengeCategoryItemProps
   title: string
   score: number
   challengeId: number
-  solved?: boolean
+  status?: SubmissionType
 }
 
-const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
-  const { gameId, gameEnded, challengeId, tagData, solved, title, score, ...modalProps } = props
+export const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
+  const { gameId, gameTitle, gameEnded, challengeId, cateData, status, title, score, ...modalProps } = props
 
-  const { data: challenge, mutate } = api.game.useGameGetChallenge(
-    gameId,
-    challengeId,
-    OnceSWRConfig
-  )
+  const { data: challenge, mutate } = api.game.useGameGetChallenge(gameId, challengeId, {
+    refreshInterval: 120 * 1000,
+  })
 
+  const { config } = useConfig()
   const { t } = useTranslation()
 
-  const wrong_flag_hints = t('challenge.content.wrong_flag_hints', {
+  const wrongFlagHints = t('challenge.content.wrong_flag_hints', {
     returnObjects: true,
   }) as string[]
 
   const isDynamic =
-    challenge?.type === ChallengeType.StaticContainer ||
-    challenge?.type === ChallengeType.DynamicContainer
+    challenge?.type === ChallengeType.StaticContainer || challenge?.type === ChallengeType.DynamicContainer
 
   const [disabled, setDisabled] = useState(false)
   const [submitId, setSubmitId] = useState(0)
   const [flag, setFlag] = useInputState('')
 
-  const onCreate = () => {
+  const onCreate = async () => {
     if (!challengeId || disabled) return
     setDisabled(true)
-    api.game
-      .gameCreateContainer(gameId, challengeId)
-      .then((res) => {
-        mutate({
-          ...challenge,
-          context: {
-            ...challenge?.context,
-            closeTime: res.data.expectStopAt,
-            instanceEntry: res.data.entry,
-          },
-        })
-        showNotification({
-          color: 'teal',
-          title: t('challenge.notification.instance.created.title'),
-          message: t('challenge.notification.instance.created.message'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
+
+    try {
+      const res = await api.game.gameCreateContainer(gameId, challengeId)
+      mutate({
+        ...challenge,
+        context: {
+          ...challenge?.context,
+          closeTime: res.data.expectStopAt,
+          instanceEntry: res.data.entry,
+        },
       })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => setDisabled(false))
+      showNotification({
+        color: 'teal',
+        title: t('challenge.notification.instance.created.title'),
+        message: t('challenge.notification.instance.created.message'),
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
-  const onDestroy = () => {
+  const requestDestroy = async () => {
+    try {
+      await mutate()
+
+      if (!challenge?.context?.instanceEntry) return
+
+      await api.game.gameDeleteContainer(gameId, challengeId)
+      mutate({
+        ...challenge,
+        context: {
+          ...challenge?.context,
+          closeTime: null,
+          instanceEntry: null,
+        },
+      })
+      showNotification({
+        color: 'teal',
+        title: t('challenge.notification.instance.destroyed.title'),
+        message: t('challenge.notification.instance.destroyed.message'),
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+    } catch (e) {
+      showErrorMsg(e, t)
+    }
+  }
+
+  const onDestroy = async () => {
     if (!challengeId || disabled) return
     setDisabled(true)
-    api.game
-      .gameDeleteContainer(gameId, challengeId)
-      .then(() => {
-        mutate({
-          ...challenge,
-          context: {
-            ...challenge?.context,
-            closeTime: null,
-            instanceEntry: null,
-          },
-        })
-        showNotification({
-          color: 'teal',
-          title: t('challenge.notification.instance.destroyed.title'),
-          message: t('challenge.notification.instance.destroyed.message'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => setDisabled(false))
+
+    await requestDestroy()
+
+    setDisabled(false)
   }
 
-  const onExtend = () => {
+  const onExtend = async () => {
     if (!challengeId || disabled) return
     setDisabled(true)
-    api.game
-      .gameExtendContainerLifetime(gameId, challengeId)
-      .then((res) => {
-        mutate({
-          ...challenge,
-          context: {
-            ...challenge?.context,
-            closeTime: res.data.expectStopAt,
-          },
-        })
+
+    try {
+      const res = await api.game.gameExtendContainerLifetime(gameId, challengeId)
+      mutate({
+        ...challenge,
+        context: {
+          ...challenge?.context,
+          closeTime: res.data.expectStopAt,
+        },
       })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => setDisabled(false))
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     if (!challengeId || !flag) {
       showNotification({
         color: 'red',
@@ -123,51 +137,52 @@ const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
     }
 
     setDisabled(true)
-    api.game
-      .gameSubmit(gameId, challengeId, {
-        flag,
+
+    try {
+      const res = await api.game.gameSubmit(gameId, challengeId, {
+        flag: await encryptApiData(t, flag.trim(), config.apiPublicKey),
       })
-      .then((res) => {
-        setSubmitId(res.data)
-        notifications.clean()
-        showNotification({
-          id: 'flag-submitted',
-          color: 'orange',
-          title: t('challenge.notification.flag.submitted.title'),
-          message: t('challenge.notification.flag.submitted.message'),
-          loading: true,
-          autoClose: false,
-        })
+      setSubmitId(res.data)
+      notifications.clean()
+      showNotification({
+        id: 'flag-submitted',
+        color: 'orange',
+        title: t('challenge.notification.flag.submitted.title'),
+        message: t('challenge.notification.flag.submitted.message'),
+        loading: true,
+        autoClose: false,
       })
-      .catch((e) => showErrorNotification(e, t))
+    } catch (e) {
+      showErrorMsg(e, t)
+      setDisabled(false)
+    }
   }
 
   useEffect(() => {
     // submitId initialization will trigger useEffect
     if (!submitId) return
 
-    const polling = setInterval(() => {
-      api.game
-        .gameStatus(gameId, challengeId, submitId)
-        .then((res) => {
-          if (res.data !== AnswerResult.FlagSubmitted) {
-            setDisabled(false)
-            setFlag('')
-            checkDataFlag(submitId, res.data)
-            clearInterval(polling)
-          }
-        })
-        .catch((err) => {
+    const polling = setInterval(async () => {
+      try {
+        const res = await api.game.gameStatus(gameId, challengeId, submitId)
+        if (res.data !== AnswerResult.FlagSubmitted) {
           setDisabled(false)
           setFlag('')
-          showErrorNotification(err, t)
+          checkDataFlag(submitId, res.data)
           clearInterval(polling)
-        })
+        }
+      } catch (err) {
+        setDisabled(false)
+        setFlag('')
+        showErrorMsg(err, t)
+        clearInterval(polling)
+      }
     }, 500)
+
     return () => clearInterval(polling)
   }, [submitId])
 
-  const checkDataFlag = (id: number, data: string) => {
+  const checkDataFlag = async (id: number, data: string) => {
     if (data === AnswerResult.Accepted) {
       updateNotification({
         id: 'flag-submitted',
@@ -180,15 +195,14 @@ const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
         autoClose: 8000,
         loading: false,
       })
-      if (isDynamic && challenge.context?.instanceEntry) onDestroy()
-      mutate()
+      if (isDynamic && challenge.context?.instanceEntry) await requestDestroy()
       props.onClose()
     } else if (data === AnswerResult.WrongAnswer) {
       updateNotification({
         id: 'flag-submitted',
         color: 'red',
         title: t('challenge.notification.flag.wrong'),
-        message: wrong_flag_hints[Math.floor(Math.random() * wrong_flag_hints.length)],
+        message: wrongFlagHints[Math.floor(Math.random() * wrongFlagHints.length)],
         icon: <Icon path={mdiClose} size={1} />,
         autoClose: 8000,
         loading: false,
@@ -211,9 +225,10 @@ const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
   return (
     <ChallengeModal
       {...modalProps}
+      gameTitle={gameTitle}
       challenge={challenge ?? { title, score }}
-      tagData={tagData}
-      solved={solved}
+      cateData={cateData}
+      solved={status !== SubmissionType.Unaccepted && status !== undefined}
       flag={flag}
       setFlag={setFlag}
       onCreate={onCreate}
@@ -224,5 +239,3 @@ const GameChallengeModal: FC<GameChallengeModalProps> = (props) => {
     />
   )
 }
-
-export default GameChallengeModal

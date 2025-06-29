@@ -20,10 +20,12 @@ import Icon from '@mdi/react'
 import dayjs from 'dayjs'
 import { CSSProperties, FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
-import ScrollSelect from '@Components/ScrollSelect'
+import { useParams } from 'react-router'
+import { ScrollSelect } from '@Components/ScrollSelect'
 import { ChallengeItem, FileItem, TeamItem } from '@Components/TrafficItems'
-import WithGameMonitorTab from '@Components/WithGameMonitor'
+import { WithGameMonitor } from '@Components/WithGameMonitor'
+import { useLanguage } from '@Utils/I18n'
+import { showErrorMsg } from '@Utils/Shared'
 import { HunamizeSize } from '@Utils/Shared'
 import api, { FileRecord } from '@Api'
 import tooltipClasses from '@Styles/Tooltip.module.css'
@@ -44,11 +46,14 @@ const Traffic: FC = () => {
   const theme = useMantineTheme()
 
   const { t } = useTranslation()
+  const { locale } = useLanguage()
   const { colorScheme } = useMantineColorScheme()
   const modals = useModals()
 
-  const { data: challengeTraffic, mutate: mutateChallenges } =
-    api.game.useGameGetChallengesWithTrafficCapturing(gameId, SWROptions)
+  const { data: challengeTraffic, mutate: mutateChallenges } = api.game.useGameGetChallengesWithTrafficCapturing(
+    gameId,
+    SWROptions
+  )
   const { data: teamTraffic, mutate: mutateTeams } = api.game.useGameGetChallengeTraffic(
     challengeId ?? 0,
     SWROptions,
@@ -81,68 +86,65 @@ const Traffic: FC = () => {
     window.open(`/api/game/captures/${challengeId}/${participationId}/all`, '_blank')
   }
 
-  const onDelete = (item: FileRecord) => {
+  const onDelete = async (item: FileRecord) => {
     if (!challengeId || !participationId || !item.fileName) return
 
     setDisabled(true)
 
-    return api.game
-      .gameDeleteTeamTraffic(challengeId, participationId, item.fileName)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('game.notification.traffic.deleted'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
+    try {
+      await api.game.gameDeleteTeamTraffic(challengeId, participationId, item.fileName)
+      showNotification({
+        color: 'teal',
+        message: t('game.notification.traffic.deleted'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .finally(() => {
-        mutateTeams()
-        mutateTraffic()
-        setDisabled(false)
-      })
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      mutateTeams()
+      mutateTraffic()
+      setDisabled(false)
+    }
   }
 
-  const onDeleteAll = () => {
+  const onDeleteAll = async () => {
     if (!challengeId || !participationId) return
 
     setDisabled(true)
 
-    api.game
-      .gameDeleteAllTeamTraffic(challengeId, participationId)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('game.notification.traffic.deleted'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
+    try {
+      await api.game.gameDeleteAllTeamTraffic(challengeId, participationId)
+      showNotification({
+        color: 'teal',
+        message: t('game.notification.traffic.deleted'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .finally(() => {
-        mutateTraffic([], false)
-        mutateTeams()
-        mutateChallenges()
-        setDisabled(false)
-      })
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      mutateTraffic()
+      mutateTeams()
+      mutateChallenges()
+      setDisabled(false)
+    }
   }
 
   const totalFileSize = fileRecords?.reduce((acc, cur) => acc + (cur?.size ?? 0), 0) ?? 0
 
-  const orderedFileRecords =
-    fileRecords?.sort((a, b) => dayjs(b.updateTime).diff(dayjs(a.updateTime))) ?? []
+  const orderedFileRecords = fileRecords?.sort((a, b) => dayjs(b.updateTime).diff(dayjs(a.updateTime))) ?? []
 
   const innerStyle: CSSProperties = {
-    borderRight: `${rem(2)} solid ${
-      colorScheme === 'dark' ? theme.colors.dark[4] : theme.colors.gray[4]
-    }`,
+    borderRight: `${rem(2)} solid ${colorScheme === 'dark' ? theme.colors.dark[4] : theme.colors.gray[4]}`,
   }
 
   const srollHeight = 'calc(100vh - 174px)'
   const headerHeight = rem(32)
 
-  challengeTraffic?.sort((a, b) => a.tag?.localeCompare(b.tag ?? '') ?? 0)
+  challengeTraffic?.sort((a, b) => a.category?.localeCompare(b.category ?? '') ?? 0)
   teamTraffic?.sort((a, b) => (a.teamId ?? 0) - (b.teamId ?? 0))
 
   return (
-    <WithGameMonitorTab isLoading={!challengeTraffic}>
+    <WithGameMonitor isLoading={!challengeTraffic}>
       {!challengeTraffic || challengeTraffic?.length === 0 ? (
         <Center h="calc(100vh - 140px)">
           <Stack gap={0}>
@@ -192,19 +194,13 @@ const Traffic: FC = () => {
                   </Text>
                 </Text>
                 <Group justify="right" gap="sm" wrap="nowrap">
-                  <Tooltip
-                    label={t('game.button.delete.all_traffic')}
-                    position="left"
-                    classNames={tooltipClasses}
-                  >
+                  <Tooltip label={t('game.button.delete.all_traffic')} position="left" classNames={tooltipClasses}>
                     <ActionIcon
                       size="md"
                       onClick={() =>
                         modals.openConfirmModal({
                           title: t('game.button.delete.all_traffic'),
-                          children: (
-                            <Text size="sm">{t('game.content.traffic.deleted_all_confirm')}</Text>
-                          ),
+                          children: <Text size="sm">{t('game.content.traffic.deleted_all_confirm')}</Text>,
                           onConfirm: onDeleteAll,
                           confirmProps: { color: 'red' },
                         })
@@ -213,11 +209,7 @@ const Traffic: FC = () => {
                       <Icon path={mdiDeleteForeverOutline} size={1} />
                     </ActionIcon>
                   </Tooltip>
-                  <Tooltip
-                    label={t('game.button.download.all_traffic')}
-                    position="left"
-                    classNames={tooltipClasses}
-                  >
+                  <Tooltip label={t('game.button.download.all_traffic')} position="left" classNames={tooltipClasses}>
                     <ActionIcon size="md" onClick={onDownloadAll}>
                       <Icon path={mdiDownloadMultiple} size={1} />
                     </ActionIcon>
@@ -227,7 +219,7 @@ const Traffic: FC = () => {
               <Divider size="sm" />
               <ScrollSelect
                 itemComponent={FileItem}
-                itemComponentProps={{ onDownload, onDelete, disabled, t }}
+                itemComponentProps={{ onDownload, onDelete, disabled, t, locale }}
                 items={orderedFileRecords}
                 h={srollHeight}
               />
@@ -235,7 +227,7 @@ const Traffic: FC = () => {
           </Grid>
         </Paper>
       )}
-    </WithGameMonitorTab>
+    </WithGameMonitor>
   )
 }
 

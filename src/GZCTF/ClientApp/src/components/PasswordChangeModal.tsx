@@ -5,12 +5,14 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import StrengthPasswordInput from '@Components/StrengthPasswordInput'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { useNavigate } from 'react-router'
+import { StrengthPasswordInput } from '@Components/StrengthPasswordInput'
+import { encryptApiData } from '@Utils/Crypto'
+import { showErrorMsg } from '@Utils/Shared'
+import { useConfig } from '@Hooks/useConfig'
 import api from '@Api'
 
-const PasswordChangeModal: FC<ModalProps> = (props) => {
+export const PasswordChangeModal: FC<ModalProps> = (props) => {
   const [oldPwd, setOldPwd] = useInputState('')
   const [pwd, setPwd] = useInputState('')
   const [retypedPwd, setRetypedPwd] = useInputState('')
@@ -18,8 +20,9 @@ const PasswordChangeModal: FC<ModalProps> = (props) => {
   const navigate = useNavigate()
 
   const { t } = useTranslation()
+  const { config } = useConfig()
 
-  const onChangePwd = () => {
+  const onChangePwd = async () => {
     if (!pwd || !retypedPwd) {
       showNotification({
         color: 'red',
@@ -28,22 +31,22 @@ const PasswordChangeModal: FC<ModalProps> = (props) => {
         icon: <Icon path={mdiClose} size={1} />,
       })
     } else if (pwd === retypedPwd) {
-      api.account
-        .accountChangePassword({
-          old: oldPwd,
-          new: pwd,
+      try {
+        await api.account.accountChangePassword({
+          old: await encryptApiData(t, oldPwd, config.apiPublicKey),
+          new: await encryptApiData(t, pwd, config.apiPublicKey),
         })
-        .then(() => {
-          showNotification({
-            color: 'teal',
-            message: t('account.notification.profile.password_updated'),
-            icon: <Icon path={mdiCheck} size={1} />,
-          })
-          props.onClose()
-          api.account.accountLogOut()
-          navigate('/account/login')
+        showNotification({
+          color: 'teal',
+          message: t('account.notification.profile.password_updated'),
+          icon: <Icon path={mdiCheck} size={1} />,
         })
-        .catch((e) => showErrorNotification(e, t))
+        props.onClose()
+        api.account.accountLogOut()
+        navigate('/account/login')
+      } catch (e) {
+        showErrorMsg(e, t)
+      }
     } else {
       showNotification({
         color: 'red',
@@ -95,5 +98,3 @@ const PasswordChangeModal: FC<ModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default PasswordChangeModal

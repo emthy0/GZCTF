@@ -53,20 +53,24 @@ split_commits = false
 protect_breaking_commits = false
 filter_commits = false
 tag_pattern = "v[0-9]*"
-ignore_tags = ""
+ignore_tags = "patch"
 topo_order = false
 sort_commits = "newest"
 
 commit_parsers = [
-  { message = "^[fF]eat", group = "<!-- 0 -->⛰️ Features" },
-  { message = "^[fF]ix", group = "<!-- 1 -->🐛 Bug Fixes" },
-  { message = "^[sS]tyle", group = "<!-- 2 -->🎨 Styling" },
+  { message = ".*BREAK", group = "<!-- 0 -->💥 BREAK CHANGES" },
+  { message = "^[fF]eat", group = "<!-- 1 -->⛰️ Features" },
+  { message = "^[fF]ix", group = "<!-- 2 -->🐛 Bug Fixes" },
+  { message = "^[sS]tyle", group = "<!-- 3 -->🎨 Styling" },
+  { message = "^[pP]erf", group = "<!-- 4 -->🚀 Performances" },
+  { message = "^[rR]efactor", group = "<!-- 5 -->🔨 Refactor" },
+  { message = "^[tT]est", group = "<!-- 6 -->🧪 Tests" },
   { message = "^[dD]oc", skip = true },
   { message = "^[rR]elease", skip = true },
   { message = "^[rR]evert", skip = true },
   { message = "^[wW]ip", skip = true },
   { message = "^[dD]eps", skip = true },
   { message = "^[cC]hore", skip = true },
-  { body = ".*security", group = "<!-- 4 -->🛡️ Security" },
+  { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
   { message = ".*", group = "<!-- 9 -->📦 Other Changes"}
 ]

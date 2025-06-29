@@ -5,12 +5,13 @@ import { mdiCheck } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useEditChallenge } from '@Utils/useEdit'
+import { useParams } from 'react-router'
+import { showErrorMsg } from '@Utils/Shared'
+import { useEditChallenge } from '@Hooks/useEdit'
 import api from '@Api'
+import misc from '@Styles/Misc.module.css'
 
-const FlagCreateModal: FC<ModalProps> = (props) => {
+export const FlagCreateModal: FC<ModalProps> = (props) => {
   const [disabled, setDisabled] = useState(false)
 
   const { id, chalId } = useParams()
@@ -21,7 +22,7 @@ const FlagCreateModal: FC<ModalProps> = (props) => {
 
   const { t } = useTranslation()
 
-  const onCreate = () => {
+  const onCreate = async () => {
     if (!flags) {
       return
     }
@@ -32,29 +33,27 @@ const FlagCreateModal: FC<ModalProps> = (props) => {
       .map((x) => ({ flag: x }))
 
     setDisabled(true)
-    api.edit
-      .editAddFlags(numId, numCId, flagList)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('admin.notification.games.challenges.flag.created'),
-          icon: <Icon path={mdiCheck} size={1} />,
+
+    try {
+      await api.edit.editAddFlags(numId, numCId, flagList)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.games.challenges.flag.created'),
+        icon: <Icon path={mdiCheck} size={1} />,
+      })
+      if (challenge) {
+        mutate({
+          ...challenge,
+          flags: [...(challenge.flags ?? []), ...flagList],
         })
-        challenge &&
-          mutate({
-            ...challenge,
-            flags: [...(challenge.flags ?? []), ...flagList],
-          })
-      })
-      .catch((err) => {
-        showErrorNotification(err, t)
-        setDisabled(false)
-      })
-      .finally(() => {
-        setFlags('')
-        setDisabled(false)
-        props.onClose()
-      })
+      }
+      setFlags('')
+      props.onClose()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (
@@ -71,11 +70,9 @@ const FlagCreateModal: FC<ModalProps> = (props) => {
           minRows={8}
           maxRows={8}
           onChange={setFlags}
-          sx={(theme) => ({
-            '& textarea': {
-              fontFamily: theme.fontFamilyMonospace,
-            },
-          })}
+          classNames={{
+            input: misc.ffmono,
+          }}
         />
         <Group grow m="auto" w="100%">
           <Button fullWidth disabled={disabled} onClick={onCreate}>
@@ -86,5 +83,3 @@ const FlagCreateModal: FC<ModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default FlagCreateModal

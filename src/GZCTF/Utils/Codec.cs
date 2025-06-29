@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -52,7 +51,7 @@ public static partial class Codec
     /// <returns></returns>
     public static string BytesToHex(byte[] bytes, bool useLower = true)
     {
-        var output = BitConverter.ToString(bytes).Replace("-", "");
+        var output = Convert.ToHexString(bytes);
         return useLower ? output.ToLowerInvariant() : output.ToUpperInvariant();
     }
 
@@ -68,67 +67,6 @@ public static partial class Codec
         for (var i = 0; i < data.Length; ++i)
             res[i] = (byte)(data[i] ^ xor[i % xor.Length]);
         return res;
-    }
-
-    /// <summary>
-    /// 将文件打包为 zip 文件
-    /// </summary>
-    /// <param name="files">文件列表</param>
-    /// <param name="basePath">根目录</param>
-    /// <param name="zipName">压缩包根目录</param>
-    /// <param name="token"></param>
-    /// <returns></returns>
-    public static async Task<Stream> ZipFilesAsync(IEnumerable<LocalFile> files, string basePath, string zipName,
-        CancellationToken token = default)
-    {
-        LocalFile[] localFiles = files as LocalFile[] ?? files.ToArray();
-        var size = localFiles.Select(f => f.FileSize).Sum();
-
-        Stream tmp = size <= 64 * 1024 * 1024
-            ? new MemoryStream()
-            : File.Create(Path.GetTempFileName(), 4096, FileOptions.DeleteOnClose);
-
-        using var zip = new ZipArchive(tmp, ZipArchiveMode.Create, true);
-
-        foreach (LocalFile file in localFiles)
-        {
-            ZipArchiveEntry entry = zip.CreateEntry(Path.Combine(zipName, file.Name), CompressionLevel.Optimal);
-            await using Stream entryStream = entry.Open();
-            await using FileStream fileStream = File.OpenRead(Path.Combine(basePath, file.Location, file.Hash));
-            await fileStream.CopyToAsync(entryStream, token);
-        }
-
-        await tmp.FlushAsync(token);
-        return tmp;
-    }
-
-    /// <summary>
-    /// 将文件夹打包为 zip 文件
-    /// </summary>
-    /// <param name="basePath">根目录</param>
-    /// <param name="zipName">压缩包根目录</param>
-    /// <param name="token"></param>
-    /// <returns></returns>
-    public static async Task<Stream> ZipFilesAsync(string basePath, string zipName, CancellationToken token = default)
-    {
-        List<FileRecord> records = FilePath.GetFileRecords(basePath, out var size);
-
-        Stream tmp = size <= 64 * 1024 * 1024
-            ? new MemoryStream()
-            : File.Create(Path.GetTempFileName(), 4096, FileOptions.DeleteOnClose);
-
-        using var zip = new ZipArchive(tmp, ZipArchiveMode.Create, true);
-
-        foreach (FileRecord file in records)
-        {
-            ZipArchiveEntry entry = zip.CreateEntry(Path.Combine(zipName, file.FileName), CompressionLevel.Optimal);
-            await using Stream entryStream = entry.Open();
-            await using FileStream fileStream = File.OpenRead(Path.Combine(basePath, file.FileName));
-            await fileStream.CopyToAsync(entryStream, token);
-        }
-
-        await tmp.FlushAsync(token);
-        return tmp;
     }
 
     /// <summary>
@@ -181,9 +119,9 @@ public static partial class Codec
                 return [];
             }
 
-            Span<char> buffer = new char[encoded.Length * 4 / 3 + 8];
+            char[] buffer = new char[encoded.Length * 4 / 3 + 8];
             return Convert.TryToBase64Chars(encoded, buffer, out var charsWritten)
-                ? Encoding.GetEncoding(type).GetBytes(buffer[..charsWritten].ToArray())
+                ? Encoding.GetEncoding(type).GetBytes(buffer[..charsWritten])
                 : [];
         }
 
@@ -192,7 +130,7 @@ public static partial class Codec
             if (str is null)
                 return [];
 
-            Span<byte> buffer = new byte[str.Length * 3 / 4 + 8];
+            Span<byte> buffer = stackalloc byte[str.Length * 3 / 4 + 8];
 
             return Convert.TryFromBase64String(str, buffer, out var bytesWritten)
                 ? buffer[..bytesWritten].ToArray()
@@ -245,27 +183,71 @@ public static partial class Codec
             ['9'] = "9g"
         };
 
+        static readonly Dictionary<char, string> ComplexCharMap = new()
+        {
+            ['A'] = "Aa4@",
+            ['B'] = "Bb6&",
+            ['C'] = "Cc(",
+            ['D'] = "Dd",
+            ['E'] = "Ee3",
+            ['F'] = "Ff1",
+            ['G'] = "Gg69",
+            ['H'] = "Hh",
+            ['I'] = "Ii1l!",
+            ['J'] = "Jj",
+            ['K'] = "Kk",
+            ['L'] = "Ll1I!",
+            ['M'] = "Mm",
+            ['N'] = "Nn",
+            ['O'] = "Oo0#",
+            ['P'] = "Pp",
+            ['Q'] = "Qq9",
+            ['R'] = "Rr",
+            ['S'] = "Ss5$",
+            ['T'] = "Tt7",
+            ['U'] = "Uu",
+            ['V'] = "Vv",
+            ['W'] = "Ww",
+            ['X'] = "Xx",
+            ['Y'] = "Yy",
+            ['Z'] = "Zz2?",
+            ['0'] = "0oO#",
+            ['1'] = "1lI|",
+            ['2'] = "2zZ?",
+            ['3'] = "3eE",
+            ['4'] = "4aA",
+            ['5'] = "5Ss",
+            ['6'] = "6Gb",
+            ['7'] = "7T",
+            ['8'] = "8B&",
+            ['9'] = "9g"
+        };
+
         public static double LeetEntropy(string flag)
         {
             double entropy = 0;
             var doLeet = false;
+            var isComplex = flag.StartsWith("[CLEET]");
+            var map = isComplex ? ComplexCharMap : CharMap;
+
             foreach (var c in flag)
             {
                 if (c is '{' or ']')
                     doLeet = true;
                 else if (doLeet && c is '}' or '[')
                     doLeet = false;
-                else if (doLeet && CharMap.TryGetValue(char.ToUpperInvariant(c), out var table))
+                else if (doLeet && map.TryGetValue(char.ToUpperInvariant(c), out var table))
                     entropy += Math.Log(table.Length, 2);
             }
 
             return entropy;
         }
 
-        public static string LeetFlag(string original)
+        public static string LeetFlag(string original, bool complex = false)
         {
             StringBuilder sb = new(original.Length);
             Random random = new();
+            var map = complex ? ComplexCharMap : CharMap;
 
             var doLeet = false;
             // note: only leet 'X' in flag{XXX_XXX_[TEAM_HASH]_XXX}
@@ -279,7 +261,7 @@ public static partial class Codec
                 {
                     doLeet = false;
                 }
-                else if (doLeet && CharMap.TryGetValue(char.ToUpperInvariant(c), out var table))
+                else if (doLeet && map.TryGetValue(char.ToUpperInvariant(c), out var table))
                 {
                     var nc = table[random.Next(table.Length)];
                     sb.Append(nc);
@@ -343,7 +325,7 @@ public static partial class CodecExtensions
         var output = MD5.HashData(str.ToUTF8Bytes());
         return useBase64
             ? Convert.ToBase64String(output)
-            : BitConverter.ToString(output).Replace("-", "").ToLowerInvariant();
+            : Convert.ToHexStringLower(output);
     }
 
     /// <summary>
@@ -357,7 +339,7 @@ public static partial class CodecExtensions
         var output = SHA256.HashData(str.ToUTF8Bytes());
         return useBase64
             ? Convert.ToBase64String(output)
-            : BitConverter.ToString(output).Replace("-", "").ToLowerInvariant();
+            : Convert.ToHexStringLower(output);
     }
 
 
@@ -367,4 +349,32 @@ public static partial class CodecExtensions
     /// <param name="str">原始字符串</param>
     /// <returns></returns>
     public static byte[] ToUTF8Bytes(this string str) => Encoding.UTF8.GetBytes(str);
+
+    /// <summary>
+    /// Get leading zeros in bits
+    /// </summary>
+    public static int LeadingZeros(this byte[] hash)
+    {
+        var leadingZeros = 0;
+        foreach (var t in hash)
+        {
+            if (t == 0)
+            {
+                leadingZeros += 8;
+            }
+            else
+            {
+                var b = t;
+                while ((b & 0x80) == 0)
+                {
+                    b <<= 1;
+                    leadingZeros++;
+                }
+
+                break;
+            }
+        }
+
+        return leadingZeros;
+    }
 }

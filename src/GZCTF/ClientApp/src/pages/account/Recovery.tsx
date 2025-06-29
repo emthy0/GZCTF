@@ -5,16 +5,18 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
-import AccountView from '@Components/AccountView'
-import Captcha, { useCaptchaRef } from '@Components/Captcha'
-import { usePageTitle } from '@Utils/usePageTitle'
+import { Link } from 'react-router'
+import { AccountView } from '@Components/AccountView'
+import { Captcha, useCaptchaRef } from '@Components/Captcha'
+import { tryGetErrorMsg } from '@Utils/Shared'
+import { usePageTitle } from '@Hooks/usePageTitle'
 import api from '@Api'
+import misc from '@Styles/Misc.module.css'
 
 const Recovery: FC = () => {
   const [email, setEmail] = useInputState('')
   const [disabled, setDisabled] = useState(false)
-  const { captchaRef, getToken } = useCaptchaRef()
+  const { captchaRef, getToken, cleanUp } = useCaptchaRef()
 
   const { t } = useTranslation()
 
@@ -61,16 +63,18 @@ const Recovery: FC = () => {
         loading: false,
         autoClose: true,
       })
+      cleanUp(true)
     } catch (err: any) {
       updateNotification({
         id: 'recovery-status',
         color: 'red',
         title: t('common.error.encountered'),
-        message: err.response.data.title,
+        message: tryGetErrorMsg(err, t),
         icon: <Icon path={mdiClose} size={1} />,
         loading: false,
         autoClose: true,
       })
+      cleanUp(false)
     } finally {
       setDisabled(false)
     }
@@ -89,14 +93,7 @@ const Recovery: FC = () => {
         onChange={(event) => setEmail(event.currentTarget.value)}
       />
       <Captcha action="recovery" ref={captchaRef} />
-      <Anchor
-        sx={(theme) => ({
-          fontSize: theme.fontSizes.xs,
-          alignSelf: 'end',
-        })}
-        component={Link}
-        to="/account/login"
-      >
+      <Anchor fz="xs" className={misc.alignSelfEnd} component={Link} to="/account/login">
         {t('account.anchor.login')}
       </Anchor>
       <Button disabled={disabled} fullWidth onClick={onRecovery}>

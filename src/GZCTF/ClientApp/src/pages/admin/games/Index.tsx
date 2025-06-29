@@ -1,35 +1,18 @@
-import {
-  ActionIcon,
-  Avatar,
-  Badge,
-  Button,
-  Code,
-  Group,
-  Paper,
-  ScrollArea,
-  Switch,
-  Table,
-  Text,
-} from '@mantine/core'
-import {
-  mdiArrowLeftBold,
-  mdiArrowRightBold,
-  mdiChevronTripleRight,
-  mdiPencilOutline,
-  mdiPlus,
-} from '@mdi/js'
+import { ActionIcon, Avatar, Badge, Button, Code, Group, Paper, ScrollArea, Switch, Table, Text } from '@mantine/core'
+import { mdiArrowLeftBold, mdiArrowRightBold, mdiChevronTripleRight, mdiPencilOutline, mdiPlus } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router'
 import { GameColorMap } from '@Components/GameCard'
-import AdminPage from '@Components/admin/AdminPage'
-import GameCreateModal from '@Components/admin/GameCreateModal'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useArrayResponse } from '@Utils/useArrayResponse'
-import { getGameStatus } from '@Utils/useGame'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { GameCreateModal } from '@Components/admin/GameCreateModal'
+import { showErrorMsg } from '@Utils/Shared'
+import { useArrayResponse } from '@Hooks/useArrayResponse'
+import { getGameStatus } from '@Hooks/useGame'
 import api, { GameInfoModel } from '@Api'
+import misc from '@Styles/Misc.module.css'
 import tableClasses from '@Styles/Table.module.css'
 
 const ITEM_COUNT_PER_PAGE = 30
@@ -38,43 +21,53 @@ const Games: FC = () => {
   const [page, setPage] = useState(1)
   const [createOpened, setCreateOpened] = useState(false)
   const [disabled, setDisabled] = useState(false)
-  const {
-    data: games,
-    total,
-    setData: setGames,
-    updateData: updateGames,
-  } = useArrayResponse<GameInfoModel>()
+  const { data: games, total, setData: setGames, updateData: updateGames } = useArrayResponse<GameInfoModel>()
   const [current, setCurrent] = useState(0)
 
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const onToggleHidden = (game: GameInfoModel) => {
+  const onToggleHidden = async (game: GameInfoModel) => {
     if (!game.id) return
-
     setDisabled(true)
-    api.edit
-      .editUpdateGame(game.id, {
+
+    try {
+      await api.edit.editUpdateGame(game.id, {
         ...game,
         hidden: !game.hidden,
       })
-      .then(() => {
-        games && updateGames(games.map((g) => (g.id === game.id ? { ...g, hidden: !g.hidden } : g)))
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => setDisabled(false))
+      if (games) {
+        updateGames(
+          games.map((g) => {
+            if (g.id === game.id) {
+              return { ...g, hidden: !g.hidden }
+            }
+            return g
+          })
+        )
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   useEffect(() => {
-    api.edit
-      .editGetGames({
-        count: ITEM_COUNT_PER_PAGE,
-        skip: (page - 1) * ITEM_COUNT_PER_PAGE,
-      })
-      .then((res) => {
+    const fetchData = async () => {
+      try {
+        const res = await api.edit.editGetGames({
+          count: ITEM_COUNT_PER_PAGE,
+          skip: (page - 1) * ITEM_COUNT_PER_PAGE,
+        })
         setGames(res.data)
         setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
-      })
+      } catch (e) {
+        showErrorMsg(e, t)
+      }
+    }
+
+    fetchData()
   }, [page])
 
   return (
@@ -83,10 +76,7 @@ const Games: FC = () => {
       headProps={{ justify: 'apart' }}
       head={
         <>
-          <Button
-            leftSection={<Icon path={mdiPlus} size={1} />}
-            onClick={() => setCreateOpened(true)}
-          >
+          <Button leftSection={<Icon path={mdiPlus} size={1} />} onClick={() => setCreateOpened(true)}>
             {t('admin.button.games.new')}
           </Button>
           <Group w="calc(100% - 9rem)" justify="right">
@@ -107,11 +97,7 @@ const Games: FC = () => {
             <Text fw="bold" size="sm">
               {page}
             </Text>
-            <ActionIcon
-              size="lg"
-              disabled={page * ITEM_COUNT_PER_PAGE >= total}
-              onClick={() => setPage(page + 1)}
-            >
+            <ActionIcon size="lg" disabled={page * ITEM_COUNT_PER_PAGE >= total} onClick={() => setPage(page + 1)}>
               <Icon path={mdiArrowRightBold} size={1} />
             </ActionIcon>
           </Group>
@@ -123,7 +109,7 @@ const Games: FC = () => {
           <Table className={tableClasses.table}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th style={{ minWidth: '1.8rem' }}>{t('admin.label.games.public')}</Table.Th>
+                <Table.Th miw="1.8rem">{t('admin.label.games.hide')}</Table.Th>
                 <Table.Th>{t('common.label.game')}</Table.Th>
                 <Table.Th>{t('common.label.time')}</Table.Th>
                 <Table.Th>{t('admin.label.games.summary')}</Table.Th>
@@ -139,11 +125,7 @@ const Games: FC = () => {
                   return (
                     <Table.Tr key={game.id}>
                       <Table.Td>
-                        <Switch
-                          disabled={disabled}
-                          checked={!game.hidden}
-                          onChange={() => onToggleHidden(game)}
-                        />
+                        <Switch disabled={disabled} checked={game.hidden} onChange={() => onToggleHidden(game)} />
                       </Table.Td>
                       <Table.Td>
                         <Group wrap="nowrap" justify="space-between">
@@ -151,7 +133,7 @@ const Games: FC = () => {
                             wrap="nowrap"
                             justify="left"
                             onClick={() => navigate(`/games/${game.id}`)}
-                            style={{ cursor: 'pointer' }}
+                            className={misc.cPointer}
                           >
                             <Avatar alt="avatar" src={game.poster} radius={0}>
                               {game.title?.slice(0, 1)}
@@ -181,11 +163,7 @@ const Games: FC = () => {
                       </Table.Td>
                       <Table.Td>
                         <Group justify="right">
-                          <ActionIcon
-                            onClick={() => {
-                              navigate(`/admin/games/${game.id}/info`)
-                            }}
-                          >
+                          <ActionIcon component={Link} to={`/admin/games/${game.id}/info`}>
                             <Icon path={mdiPencilOutline} size={1} />
                           </ActionIcon>
                         </Group>

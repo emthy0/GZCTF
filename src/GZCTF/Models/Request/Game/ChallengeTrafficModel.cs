@@ -1,16 +1,18 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using FluentStorage;
+using FluentStorage.Blobs;
 
 namespace GZCTF.Models.Request.Game;
 
 public class ChallengeTrafficModel
 {
     /// <summary>
-    /// 题目Id
+    /// Challenge ID
     /// </summary>
     public int Id { get; set; }
 
     /// <summary>
-    /// 题目名称
+    /// Challenge title
     /// </summary>
     [Required(ErrorMessageResourceName = nameof(Resources.Program.Model_TitleRequired),
         ErrorMessageResourceType = typeof(Resources.Program))]
@@ -19,39 +21,38 @@ public class ChallengeTrafficModel
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// 题目标签
+    /// Challenge category
     /// </summary>
-    public ChallengeTag Tag { get; set; } = ChallengeTag.Misc;
+    public ChallengeCategory Category { get; set; } = ChallengeCategory.Misc;
 
     /// <summary>
-    /// 题目类型
+    /// Challenge type
     /// </summary>
     public ChallengeType Type { get; set; } = ChallengeType.StaticAttachment;
 
     /// <summary>
-    /// 是否启用题目
+    /// Is the challenge enabled
     /// </summary>
     public bool IsEnabled { get; set; }
 
     /// <summary>
-    /// 题目所捕获到的队伍流量数量
+    /// Number of team traffic captured by the challenge
     /// </summary>
     public int Count { get; set; }
 
-    internal static ChallengeTrafficModel FromChallenge(GameChallenge challenge)
+    internal static async Task<ChallengeTrafficModel> FromChallengeAsync(GameChallenge chal, IBlobStorage storage,
+        CancellationToken token)
     {
-        var trafficPath = $"{FilePath.Capture}/{challenge.Id}";
+        var path = StoragePath.Combine(PathHelper.Capture, chal.Id.ToString());
 
         return new()
         {
-            Id = challenge.Id,
-            Title = challenge.Title,
-            Tag = challenge.Tag,
-            Type = challenge.Type,
-            IsEnabled = challenge.IsEnabled,
-            Count = Directory.Exists(trafficPath)
-                ? Directory.GetDirectories(trafficPath, "*", SearchOption.TopDirectoryOnly).Length
-                : 0
+            Id = chal.Id,
+            Title = chal.Title,
+            Category = chal.Category,
+            Type = chal.Type,
+            IsEnabled = chal.IsEnabled,
+            Count = (await storage.ListAsync(path, cancellationToken: token)).Count
         };
     }
 }

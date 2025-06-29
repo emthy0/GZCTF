@@ -20,6 +20,7 @@ import {
   mdiExclamationThick,
   mdiFlag,
   mdiLightningBolt,
+  mdiReplay,
   mdiToggleSwitchOffOutline,
   mdiToggleSwitchOutline,
 } from '@mdi/js'
@@ -29,11 +30,13 @@ import dayjs from 'dayjs'
 import { TFunction } from 'i18next'
 import React, { FC, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
-import WithGameMonitorTab from '@Components/WithGameMonitor'
+import { useParams } from 'react-router'
+import { WithGameMonitor } from '@Components/WithGameMonitor'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
+import { handleAxiosError } from '@Utils/ApiHelper'
+import { useLanguage } from '@Utils/I18n'
 import { useDisplayInputStyles } from '@Utils/ThemeOverride'
-import { useGame } from '@Utils/useGame'
+import { useGame } from '@Hooks/useGame'
 import api, { AnswerResult, EventType, GameEvent } from '@Api'
 import tableClasses from '@Styles/Table.module.css'
 
@@ -46,18 +49,9 @@ const EventTypeIconMap = (size: number) => {
 
   return new Map([
     [EventType.FlagSubmit, { path: mdiFlag, size, color: theme.colors.cyan[colorIdx] }],
-    [
-      EventType.ContainerStart,
-      { path: mdiToggleSwitchOutline, size, color: theme.colors.green[colorIdx] },
-    ],
-    [
-      EventType.ContainerDestroy,
-      { path: mdiToggleSwitchOffOutline, size, color: theme.colors.red[colorIdx] },
-    ],
-    [
-      EventType.CheatDetected,
-      { path: mdiExclamationThick, size, color: theme.colors.orange[colorIdx] },
-    ],
+    [EventType.ContainerStart, { path: mdiToggleSwitchOutline, size, color: theme.colors.green[colorIdx] }],
+    [EventType.ContainerDestroy, { path: mdiToggleSwitchOffOutline, size, color: theme.colors.red[colorIdx] }],
+    [EventType.CheatDetected, { path: mdiExclamationThick, size, color: theme.colors.orange[colorIdx] }],
     [EventType.Normal, { path: mdiLightningBolt, size, color: theme.colors.light[colorIdx] }],
   ])
 }
@@ -121,6 +115,8 @@ const Events: FC = () => {
     getInitialValueInEffect: false,
   })
 
+  const { locale } = useLanguage()
+
   const [activePage, setPage] = useState(1)
 
   const [, update] = useState(new Date())
@@ -139,23 +135,26 @@ const Events: FC = () => {
   }, [activePage, viewport])
 
   useEffect(() => {
-    api.game
-      .gameEvents(numId, {
-        hideContainer: hideContainerEvents,
-        count: ITEM_COUNT_PER_PAGE,
-        skip: (activePage - 1) * ITEM_COUNT_PER_PAGE,
-      })
-      .then((data) => {
-        setEvents(data.data)
-      })
-      .catch((err) => {
+    const fetchEvents = async () => {
+      try {
+        const res = await api.game.gameEvents(numId, {
+          hideContainer: hideContainerEvents,
+          count: ITEM_COUNT_PER_PAGE,
+          skip: (activePage - 1) * ITEM_COUNT_PER_PAGE,
+        })
+        setEvents(res.data)
+      } catch (err) {
         showNotification({
           color: 'red',
           title: t('game.notification.fetch_failed.event'),
-          message: err.response.data.title,
+          message: await handleAxiosError(err),
           icon: <Icon path={mdiClose} size={1} />,
         })
-      })
+      }
+    }
+
+    fetchEvents()
+
     if (activePage === 1) {
       newEvents.current = []
     }
@@ -178,18 +177,20 @@ const Events: FC = () => {
         update(new Date(message.time!))
       })
 
-      connection
-        .start()
-        .then(() => {
+      const startConnection = async () => {
+        try {
+          await connection.start()
           showNotification({
             color: 'teal',
             message: t('game.notification.connected.event'),
             icon: <Icon path={mdiCheck} size={1} />,
           })
-        })
-        .catch((error) => {
-          console.error(error)
-        })
+        } catch (err) {
+          console.error(err)
+        }
+      }
+
+      startConnection()
 
       return () => {
         connection.stop().catch((err) => {
@@ -200,13 +201,11 @@ const Events: FC = () => {
   }, [game, numId, t])
 
   const filteredEvents = newEvents.current.filter(
-    (e) =>
-      !hideContainerEvents ||
-      (e.type !== EventType.ContainerStart && e.type !== EventType.ContainerDestroy)
+    (e) => !hideContainerEvents || (e.type !== EventType.ContainerStart && e.type !== EventType.ContainerDestroy)
   )
 
   return (
-    <WithGameMonitorTab isLoading={!events}>
+    <WithGameMonitor isLoading={!events}>
       <Group justify="space-between" w="100%">
         <Switch
           label={SwitchLabel(
@@ -217,6 +216,9 @@ const Events: FC = () => {
           onChange={(e) => setHideContainerEvents(e.currentTarget.checked)}
         />
         <Group justify="right">
+          <ActionIcon size="lg" disabled={activePage <= 1} onClick={() => setPage(1)}>
+            <Icon path={mdiReplay} size={1} />
+          </ActionIcon>
           <ActionIcon size="lg" disabled={activePage <= 1} onClick={() => setPage(activePage - 1)}>
             <Icon path={mdiArrowLeftBold} size={1} />
           </ActionIcon>
@@ -237,11 +239,7 @@ const Events: FC = () => {
               radius="sm"
               p="xs"
               key={`${event.time}@${i}`}
-              className={
-                i === 0 && activePage === 1 && filteredEvents.length > 0
-                  ? tableClasses.fade
-                  : undefined
-              }
+              className={i === 0 && activePage === 1 && filteredEvents.length > 0 ? tableClasses.fade : undefined}
             >
               <Group wrap="nowrap" align="flex-start" justify="right" gap="sm" w="100%">
                 <Icon {...iconMap.get(event.type)!} />
@@ -258,7 +256,7 @@ const Events: FC = () => {
                       {event.team}, {event.user}
                     </Text>
                     <Text size="xs" fw={500} c="dimmed">
-                      {dayjs(event.time).format('MM/DD HH:mm:ss')}
+                      {dayjs(event.time).locale(locale).format('SL LTS')}
                     </Text>
                   </Group>
                 </Stack>
@@ -267,7 +265,7 @@ const Events: FC = () => {
           ))}
         </Stack>
       </ScrollArea>
-    </WithGameMonitorTab>
+    </WithGameMonitor>
   )
 }
 

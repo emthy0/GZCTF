@@ -5,6 +5,7 @@ import { Icon } from '@mdi/react'
 import React, { FC } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useIsMobile } from '@Utils/ThemeOverride'
+import misc from '@Styles/Misc.module.css'
 
 const PasswordRequirement: FC<{ meets: boolean; label: string }> = ({ meets, label }) => {
   return (
@@ -25,7 +26,7 @@ interface StrengthPasswordInputProps {
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
 }
 
-const StrengthPasswordInput: FC<StrengthPasswordInputProps> = (props) => {
+export const StrengthPasswordInput: FC<StrengthPasswordInputProps> = (props) => {
   const [opened, { close, open }] = useDisclosure(false)
   const pwd = props.value
   const isMobile = useIsMobile()
@@ -52,17 +53,9 @@ const StrengthPasswordInput: FC<StrengthPasswordInputProps> = (props) => {
   }
 
   const checks = [
-    <PasswordRequirement
-      key={0}
-      label={t('account.password.min_length')}
-      meets={pwd.length >= 6}
-    />,
+    <PasswordRequirement key={0} label={t('account.password.min_length')} meets={pwd.length >= 6} />,
     ...requirements.map((requirement, index) => (
-      <PasswordRequirement
-        key={index + 1}
-        label={requirement.label}
-        meets={requirement.re.test(pwd)}
-      />
+      <PasswordRequirement key={index + 1} label={requirement.label} meets={requirement.re.test(pwd)} />
     )),
   ]
 
@@ -71,15 +64,11 @@ const StrengthPasswordInput: FC<StrengthPasswordInputProps> = (props) => {
 
   return (
     <Popover
+      withArrow
       opened={opened}
       position={isMobile ? 'top' : 'right'}
-      styles={{
-        dropdown: {
-          marginLeft: '2rem',
-          width: isMobile ? '50vw' : '10rem',
-        },
-      }}
-      withArrow
+      data-mobile={isMobile || undefined}
+      classNames={{ dropdown: misc.dropdown }}
       transitionProps={{ transition: 'pop-bottom-left' }}
     >
       <Popover.Target>
@@ -102,5 +91,3 @@ const StrengthPasswordInput: FC<StrengthPasswordInputProps> = (props) => {
     </Popover>
   )
 }
-
-export default StrengthPasswordInput

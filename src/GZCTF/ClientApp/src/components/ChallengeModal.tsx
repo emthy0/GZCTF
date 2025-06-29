@@ -10,23 +10,24 @@ import {
   Title,
   useMantineTheme,
   ScrollAreaAutosize,
-  Skeleton,
 } from '@mantine/core'
 import { mdiLightbulbOnOutline, mdiOpenInNew, mdiPackageVariantClosed } from '@mdi/js'
 import Icon from '@mdi/react'
 import { FC, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import InstanceEntry from '@Components/InstanceEntry'
-import Markdown, { InlineMarkdown } from '@Components/MarkdownRenderer'
-import { ChallengeTagItemProps } from '@Utils/Shared'
+import { InstanceEntry } from '@Components/InstanceEntry'
+import { ContentPlaceholder, InlineMarkdown, Markdown } from '@Components/MarkdownRenderer'
+import { ChallengeCategoryItemProps } from '@Utils/Shared'
 import { ChallengeDetailModel, ChallengeType } from '@Api'
 import classes from '@Styles/ChallengeModal.module.css'
+import misc from '@Styles/Misc.module.css'
 
 export interface ChallengeModalProps extends ModalProps {
   challenge?: ChallengeDetailModel
-  tagData: ChallengeTagItemProps
+  cateData: ChallengeCategoryItemProps
   solved?: boolean
   disabled?: boolean
+  gameTitle?: string
   flag: string
   setFlag: (value: string | React.ChangeEvent<any> | null | undefined) => void
   onCreate: () => void
@@ -36,12 +37,13 @@ export interface ChallengeModalProps extends ModalProps {
   onDownload?: () => void
 }
 
-const ChallengeModal: FC<ChallengeModalProps> = (props) => {
+export const ChallengeModal: FC<ChallengeModalProps> = (props) => {
   const {
     challenge,
-    tagData,
+    cateData,
     solved,
     disabled,
+    gameTitle,
     flag,
     setFlag,
     onCreate,
@@ -65,38 +67,29 @@ const ChallengeModal: FC<ChallengeModalProps> = (props) => {
   }, [challenge])
 
   const isContainer =
-    challenge?.type === ChallengeType.StaticContainer ||
-    challenge?.type === ChallengeType.DynamicContainer
+    challenge?.type === ChallengeType.StaticContainer || challenge?.type === ChallengeType.DynamicContainer
 
   const title = (
     <Stack gap="xs">
       <Group wrap="nowrap" w="100%" justify="space-between" gap="sm">
-        <Group wrap="nowrap" gap="sm">
-          {tagData && <Icon path={tagData.icon} size={1} color={theme.colors[tagData?.color][5]} />}
-          <Title w="calc(100% - 1.5rem)" order={4} lineClamp={1}>
+        <Group wrap="nowrap" gap="sm" w="calc(100% - 6.75rem)">
+          {cateData && <Icon path={cateData.icon} size={1.2} color={theme.colors[cateData?.color][5]} />}
+          <Title order={4} lineClamp={1}>
             {challenge?.title ?? ''}
           </Title>
         </Group>
-        <Text miw="5em" fw="bold" ff="monospace">
+        <Text miw="6rem" fw="bold" ff="monospace" ta="right">
           {challenge?.score ?? 0} pts
         </Text>
       </Group>
-      <Divider />
+      <Divider size="md" color={cateData?.color} />
     </Stack>
   )
 
   const content = (
     <ScrollAreaAutosize mah="50vh" maw="100%" scrollbars="y" scrollbarSize={6} type="scroll">
       {challenge?.content === undefined ? (
-        <>
-          <Skeleton height={14} mt={8} radius="xl" />
-          <Skeleton height={14} mt={8} radius="xl" />
-          <Skeleton height={14} mt={8} width="60%" radius="xl" />
-
-          <Skeleton height={14} mt={8 + 14} radius="xl" />
-          <Skeleton height={14} mt={8} radius="xl" />
-          <Skeleton height={14} mt={8} width="30%" radius="xl" />
-        </>
+        <ContentPlaceholder />
       ) : (
         <>
           <Markdown source={challenge.content ?? ''} />
@@ -152,6 +145,7 @@ const ChallengeModal: FC<ChallengeModalProps> = (props) => {
 
   const instance = withInstance && (
     <InstanceEntry
+      label={`${challenge.title} @ ${gameTitle}`}
       context={challenge.context!}
       onCreate={onCreate}
       onExtend={onExtend}
@@ -166,36 +160,25 @@ const ChallengeModal: FC<ChallengeModalProps> = (props) => {
       {attachment}
       {instance}
       <Divider />
-      {solved ? (
-        <Text ta="center" fw="bold">
-          {t('challenge.content.already_solved')}
-        </Text>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            onSubmitFlag()
-          }}
-        >
-          <Group justify="space-between" gap="sm" align="flex-end">
-            <TextInput
-              placeholder={placeholder}
-              value={flag}
-              disabled={disabled}
-              onChange={setFlag}
-              style={{ flexGrow: 1 }}
-              styles={{
-                input: {
-                  fontFamily: theme.fontFamilyMonospace,
-                },
-              }}
-            />
-            <Button miw="6rem" type="submit" disabled={disabled}>
-              {t('challenge.button.submit_flag')}
-            </Button>
-          </Group>
-        </form>
-      )}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!solved) onSubmitFlag()
+        }}
+      >
+        <Group justify="space-between" gap="sm" align="flex-end">
+          <TextInput
+            placeholder={placeholder}
+            value={solved ? t('challenge.content.already_solved') : flag}
+            disabled={disabled || solved}
+            onChange={setFlag}
+            classNames={{ root: misc.flexGrow, input: misc.ffmono }}
+          />
+          <Button miw="6rem" type="submit" disabled={disabled || solved}>
+            {t('challenge.button.submit_flag')}
+          </Button>
+        </Group>
+      </form>
     </Stack>
   )
 
@@ -227,5 +210,3 @@ const ChallengeModal: FC<ChallengeModalProps> = (props) => {
     </Modal.Root>
   )
 }
-
-export default ChallengeModal

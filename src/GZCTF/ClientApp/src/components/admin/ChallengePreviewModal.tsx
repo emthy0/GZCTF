@@ -6,23 +6,23 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import React, { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import ChallengeModal from '@Components/ChallengeModal'
-import { ChallengeTagItemProps } from '@Utils/Shared'
+import { ChallengeModal } from '@Components/ChallengeModal'
+import { ChallengeCategoryItemProps } from '@Utils/Shared'
 import { ChallengeDetailModel } from '@Api'
 
 interface ChallengePreviewModalProps extends ModalProps {
   challenge: ChallengeDetailModel
-  tagData: ChallengeTagItemProps
+  cateData: ChallengeCategoryItemProps
 }
 
 interface FakeContext {
-  closeTime: string | null
+  closeTime: number | null
   instanceEntry: string | null
   url: string
 }
 
-const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
-  const { challenge, tagData, ...modalProps } = props
+export const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
+  const { challenge, cateData, ...modalProps } = props
 
   const [context, setContext] = useState<FakeContext>({
     closeTime: null,
@@ -36,7 +36,7 @@ const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
   const onCreate = () => {
     setContext({
       ...context,
-      closeTime: dayjs().add(10, 'm').add(10, 's').toJSON(),
+      closeTime: dayjs().add(10, 'm').add(10, 's').valueOf(),
       instanceEntry: 'localhost:2333',
     })
   }
@@ -52,7 +52,7 @@ const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
   const onExtend = () => {
     setContext({
       ...context,
-      closeTime: dayjs(context.closeTime).add(10, 'm').toJSON(),
+      closeTime: dayjs(context.closeTime).add(10, 'm').valueOf(),
       instanceEntry: context.instanceEntry,
     })
   }
@@ -79,7 +79,7 @@ const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
     <ChallengeModal
       {...modalProps}
       challenge={{ ...challenge, context: context }}
-      tagData={tagData}
+      cateData={cateData}
       flag={flag}
       setFlag={setFlag}
       onCreate={onCreate}
@@ -90,5 +90,3 @@ const ChallengePreviewModal: FC<ChallengePreviewModalProps> = (props) => {
     />
   )
 }
-
-export default ChallengePreviewModal

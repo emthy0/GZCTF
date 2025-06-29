@@ -5,45 +5,54 @@ using MemoryPack;
 namespace GZCTF.Models.Request.Game;
 
 /// <summary>
-/// 比赛基本信息，不包含详细介绍与当前队伍报名状态
+/// Basic game information, excluding detailed description and current team registration status
 /// </summary>
 [MemoryPackable]
 public partial class BasicGameInfoModel
 {
     [Key]
+    [Required]
     public int Id { get; set; }
 
     /// <summary>
-    /// 比赛标题
+    /// Game title
     /// </summary>
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// 比赛描述
+    /// Game summary
     /// </summary>
     public string Summary { get; set; } = string.Empty;
 
     /// <summary>
-    /// 头图
+    /// Poster image URL
     /// </summary>
     [JsonPropertyName("poster")]
-    public string? PosterUrl { get; set; } = string.Empty;
+    public string? PosterUrl => Data.Game.GetPosterUrl(PosterHash);
 
     /// <summary>
-    /// 队员数量限制
+    /// Poster hash
+    /// </summary>
+    [JsonIgnore]
+    public string? PosterHash { get; set; }
+
+    /// <summary>
+    /// Team member limit
     /// </summary>
     [JsonPropertyName("limit")]
-    public int TeamMemberLimitCount { get; set; }
+    public int TeamMemberCountLimit { get; set; }
 
     /// <summary>
-    /// 开始时间
+    /// Start time
     /// </summary>
+    [Required]
     [JsonPropertyName("start")]
     public DateTimeOffset StartTimeUtc { get; set; } = DateTimeOffset.FromUnixTimeSeconds(0);
 
     /// <summary>
-    /// 结束时间
+    /// End time
     /// </summary>
+    [Required]
     [JsonPropertyName("end")]
     public DateTimeOffset EndTimeUtc { get; set; } = DateTimeOffset.FromUnixTimeSeconds(0);
 
@@ -53,9 +62,9 @@ public partial class BasicGameInfoModel
             Id = game.Id,
             Title = game.Title,
             Summary = game.Summary,
-            PosterUrl = game.PosterUrl,
+            PosterHash = game.PosterHash,
             StartTimeUtc = game.StartTimeUtc,
             EndTimeUtc = game.EndTimeUtc,
-            TeamMemberLimitCount = game.TeamMemberCountLimit
+            TeamMemberCountLimit = game.TeamMemberCountLimit
         };
 }

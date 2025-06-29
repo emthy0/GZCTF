@@ -1,24 +1,27 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Reflection;
+using System.Text;
 using System.Text.Json.Serialization;
 using GZCTF.Extensions;
 using GZCTF.Services.Cache;
 using MemoryPack;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Exporter;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Utilities.Encoders;
 using Serilog.Sinks.Grafana.Loki;
-using IPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
 
 namespace GZCTF.Models.Internal;
 
 /// <summary>
-/// 在主动保存时忽略
+/// Ignore when saving automatically
 /// </summary>
+[AttributeUsage(AttributeTargets.Property)]
 public sealed class AutoSaveIgnoreAttribute : Attribute;
 
 /// <summary>
-/// 更改该属性时需要更新缓存
+/// Update cache when this property changes
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 public sealed class CacheFlushAttribute(string cacheKey) : Attribute
@@ -27,53 +30,54 @@ public sealed class CacheFlushAttribute(string cacheKey) : Attribute
 }
 
 /// <summary>
-/// 账户策略
+/// Account policy
 /// </summary>
 public class AccountPolicy
 {
     /// <summary>
-    /// 允许用户注册
+    /// Allow user registration
     /// </summary>
     public bool AllowRegister { get; set; } = true;
 
     /// <summary>
-    /// 注册时直接激活账户
+    /// Activate account upon registration
     /// </summary>
     public bool ActiveOnRegister { get; set; } = true;
 
     /// <summary>
-    /// 使用验证码校验
+    /// Use captcha verification
     /// </summary>
+    [CacheFlush(CacheKey.CaptchaConfig)]
     public bool UseCaptcha { get; set; }
 
     /// <summary>
-    /// 注册、更换邮箱、找回密码需要邮件确认
+    /// Email confirmation required for registration, email change, and password recovery
     /// </summary>
     public bool EmailConfirmationRequired { get; set; }
 
     /// <summary>
-    /// 邮箱后缀域名，以逗号分割
+    /// Email domain list, separated by commas
     /// </summary>
     public string EmailDomainList { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// 容器策略
+/// Container policy
 /// </summary>
 public class ContainerPolicy
 {
     /// <summary>
-    /// 是否在达到数量限制时自动销毁最早的容器
+    /// Automatically destroy the oldest container when the limit is reached
     /// </summary>
     public bool AutoDestroyOnLimitReached { get; set; }
 
     /// <summary>
-    /// 用户容器数量限制，用于限制练习题目的容器数量
+    /// User container limit, used to limit the number of exercise containers
     /// </summary>
     public int MaxExerciseContainerCountPerUser { get; set; } = 1;
 
     /// <summary>
-    /// 容器的默认生命周期，以分钟计
+    /// Default container lifetime in minutes
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     [Range(1, 7200, ErrorMessageResourceName = nameof(Resources.Program.Model_OutOfRange),
@@ -81,7 +85,7 @@ public class ContainerPolicy
     public int DefaultLifetime { get; set; } = 120;
 
     /// <summary>
-    /// 容器每次续期的时长，以分钟计
+    /// Extension duration for each renewal in minutes
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     [Range(1, 7200, ErrorMessageResourceName = nameof(Resources.Program.Model_OutOfRange),
@@ -89,7 +93,7 @@ public class ContainerPolicy
     public int ExtensionDuration { get; set; } = 120;
 
     /// <summary>
-    /// 容器停止前的可续期时间段，以分钟计
+    /// Renewal window before container stops in minutes
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     [Range(1, 360, ErrorMessageResourceName = nameof(Resources.Program.Model_OutOfRange),
@@ -97,116 +101,194 @@ public class ContainerPolicy
     public int RenewalWindow { get; set; } = 10;
 }
 
+public class ApiEncryptionConfig
+{
+    /// <summary>
+    /// The API public key
+    /// </summary>
+    public string PublicKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The API private key
+    /// </summary>
+    public string PrivateKey { get; set; } = string.Empty;
+
+    public void RegenerateKeys(byte[] xorKey)
+    {
+        var kp = CryptoUtils.GenerateX25519KeyPair();
+        var privateKey = (X25519PrivateKeyParameters)kp.Private;
+        var publicKey = (X25519PublicKeyParameters)kp.Public;
+        var privateKeyBytes = Codec.Xor(privateKey.GetEncoded(), xorKey);
+        PublicKey = Base64.ToBase64String(publicKey.GetEncoded());
+        PrivateKey = Base64.ToBase64String(privateKeyBytes);
+    }
+
+    public string? DecryptData(string data, byte[] xorKey)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(xorKey);
+
+        try
+        {
+            var encryptedData = Base64.Decode(data);
+            var privateKeyBytes = Codec.Xor(Base64.Decode(PrivateKey), xorKey);
+            var privateKey = new X25519PrivateKeyParameters(privateKeyBytes);
+
+            return Encoding.UTF8.GetString(CryptoUtils.DecryptData(encryptedData, privateKey));
+        }
+        catch
+        {
+            // If decryption fails, return null
+            return null;
+        }
+    }
+}
+
 /// <summary>
-/// 全局设置
+/// Configs controlled by the backend
+/// </summary>
+public class ManagedConfig
+{
+    /// <summary>
+    /// Api encryption configuration
+    /// </summary>
+    public ApiEncryptionConfig ApiEncryption { get; set; } = new();
+}
+
+/// <summary>
+/// Global settings
 /// </summary>
 public class GlobalConfig
 {
     /// <summary>
-    /// 默认站点描述
+    /// Default site description
     /// </summary>
     public const string DefaultDescription = "GZ::CTF is an open source CTF platform";
 
     /// <summary>
-    /// 平台前缀名称
+    /// Platform prefix name
     /// </summary>
     [CacheFlush(CacheKey.Index)]
     [CacheFlush(CacheKey.ClientConfig)]
     public string Title { get; set; } = "GZ";
 
     /// <summary>
-    /// 平台标语
+    /// Platform slogan
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     public string Slogan { get; set; } = "Hack for fun not for profit";
 
     /// <summary>
-    /// 站点描述显示的信息
+    /// Site description information
     /// </summary>
     [CacheFlush(CacheKey.Index)]
     public string? Description { get; set; } = DefaultDescription;
 
     /// <summary>
-    /// 页脚显示的信息
+    /// Footer information
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     public string? FooterInfo { get; set; }
 
     /// <summary>
-    /// 自定义主题颜色
+    /// Custom theme color
     /// </summary>
     [CacheFlush(CacheKey.ClientConfig)]
     public string? CustomTheme { get; set; }
 
     /// <summary>
-    /// 平台 logo 哈希
+    /// Use asymmetric encryption for API requests
+    /// </summary>
+    [CacheFlush(CacheKey.ClientConfig)]
+    public bool ApiEncryption { get; set; }
+
+    /// <summary>
+    /// Platform logo hash
     /// </summary>
     [AutoSaveIgnore]
     public string? LogoHash { get; set; }
 
     /// <summary>
-    /// 平台 favicon 哈希
+    /// Platform favicon hash
     /// </summary>
     [AutoSaveIgnore]
     public string? FaviconHash { get; set; }
 
     [JsonIgnore]
-    public string? LogoUrl => LogoHash.IsNullOrEmpty() ? null : $"/assets/{LogoHash}/logo";
+    public string? LogoUrl => string.IsNullOrEmpty(LogoHash) ? null : $"/assets/{LogoHash}/logo";
 
     /// <summary>
-    /// 平台名称，用于邮件和主页渲染
+    /// Platform name, used for email and homepage rendering
     /// </summary>
     [JsonIgnore]
-    public string Platform => Title.IsNullOrEmpty() ? "GZ::CTF" : $"{Title}::CTF";
+    public string Platform => string.IsNullOrEmpty(Title) ? "GZ::CTF" : $"{Title}::CTF";
 }
 
 /// <summary>
-/// 客户端配置
+/// Client configuration
 /// </summary>
 [MemoryPackable]
 public partial class ClientConfig
 {
     /// <summary>
-    /// 平台前缀名称
+    /// Platform prefix name
     /// </summary>
     public string Title { get; set; } = "GZ";
 
     /// <summary>
-    /// 平台标语
+    /// Platform slogan
     /// </summary>
     public string Slogan { get; set; } = "Hack for fun not for profit";
 
     /// <summary>
-    /// 页脚显示的信息
+    /// Footer information
     /// </summary>
     public string? FooterInfo { get; set; }
 
     /// <summary>
-    /// 自定义主题颜色
+    /// Custom theme color
     /// </summary>
     public string? CustomTheme { get; set; }
 
     /// <summary>
-    /// 平台 Logo
+    /// The public key used for API requests
+    /// </summary>
+    public string? ApiPublicKey { get; set; }
+
+    /// <summary>
+    /// Platform logo URL
     /// </summary>
     public string? LogoUrl { get; set; }
 
     /// <summary>
-    /// 容器的默认生命周期，以分钟计
+    /// Container port mapping type
+    /// </summary>
+    public ContainerPortMappingType PortMapping { get; set; } = ContainerPortMappingType.Default;
+
+    /// <summary>
+    /// Default container lifetime in minutes
     /// </summary>
     public int DefaultLifetime { get; set; } = 120;
 
     /// <summary>
-    /// 容器每次续期的时长，以分钟计
+    /// Extension duration for each renewal in minutes
     /// </summary>
     public int ExtensionDuration { get; set; } = 120;
 
     /// <summary>
-    /// 容器停止前的可续期时间段，以分钟计
+    /// Renewal window before container stops in minutes
     /// </summary>
     public int RenewalWindow { get; set; } = 10;
 
-    public static ClientConfig FromConfigs(GlobalConfig globalConfig, ContainerPolicy containerPolicy) =>
+    public static ClientConfig FromServiceProvider(IServiceProvider serviceProvider) =>
+        FromConfigs(
+            serviceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value,
+            serviceProvider.GetRequiredService<IOptionsSnapshot<ContainerPolicy>>().Value,
+            serviceProvider.GetRequiredService<IOptionsSnapshot<ContainerProvider>>().Value,
+            serviceProvider.GetRequiredService<IOptionsSnapshot<ManagedConfig>>().Value);
+
+    static ClientConfig FromConfigs(GlobalConfig globalConfig, ContainerPolicy containerPolicy,
+        ContainerProvider containerProvider, ManagedConfig managedConfig) =>
         new()
         {
             Title = globalConfig.Title,
@@ -214,6 +296,8 @@ public partial class ClientConfig
             FooterInfo = globalConfig.FooterInfo,
             CustomTheme = globalConfig.CustomTheme,
             LogoUrl = globalConfig.LogoUrl,
+            ApiPublicKey = globalConfig.ApiEncryption ? managedConfig.ApiEncryption.PublicKey : null,
+            PortMapping = containerProvider.PortMappingType,
             DefaultLifetime = containerPolicy.DefaultLifetime,
             ExtensionDuration = containerPolicy.ExtensionDuration,
             RenewalWindow = containerPolicy.RenewalWindow
@@ -226,13 +310,15 @@ public class SmtpConfig
 {
     public string? Host { get; set; } = "127.0.0.1";
     public int? Port { get; set; } = 587;
+    public bool BypassCertVerify { get; set; }
 }
 
 public class EmailConfig
 {
     public string? UserName { get; set; } = string.Empty;
     public string? Password { get; set; } = string.Empty;
-    public string? SendMailAddress { get; set; } = string.Empty;
+    public string? SenderAddress { get; set; } = string.Empty;
+    public string? SenderName { get; set; } = string.Empty;
     public SmtpConfig? Smtp { get; set; } = new();
 }
 
@@ -240,20 +326,20 @@ public class EmailConfig
 
 #region Container Provider
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<ContainerProviderType>))]
 public enum ContainerProviderType
 {
     Docker,
     Kubernetes
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<ContainerPortMappingType>))]
 public enum ContainerPortMappingType
 {
-    // Use default to map the container port to a random port on the host
+    /// Use default to map the container port to a random port on the host
     Default,
 
-    // Use platform proxy to map the container tcp to wss
+    /// Use platform proxy to map the container tcp to wss
     PlatformProxy
 }
 
@@ -262,9 +348,7 @@ public class ContainerProvider
     public ContainerProviderType Type { get; set; } = ContainerProviderType.Docker;
     public ContainerPortMappingType PortMappingType { get; set; } = ContainerPortMappingType.Default;
     public bool EnableTrafficCapture { get; set; }
-
     public string PublicEntry { get; set; } = string.Empty;
-
     public KubernetesConfig? KubernetesConfig { get; set; }
     public DockerConfig? DockerConfig { get; set; }
 }
@@ -286,23 +370,56 @@ public class KubernetesConfig
     public string[]? Dns { get; set; }
 }
 
+public class RegistrySet<T> : Dictionary<string, T>
+where T : class
+{
+    public T? GetForImage(string image)
+    {
+        if (string.IsNullOrWhiteSpace(image))
+            return null;
+
+        image = image.Contains("://") ? image : $"https://{image}";
+
+        if (!Uri.TryCreate(image, UriKind.Absolute, out var uri) || uri.HostNameType == UriHostNameType.Unknown)
+            return null;
+
+        return TryGetValue(uri.Authority, out var cfg) ? cfg :
+            TryGetValue(uri.Host, out var cfgHost) ? cfgHost : null;
+    }
+}
+
 public class RegistryConfig
 {
     public string? ServerAddress { get; set; }
     public string? UserName { get; set; }
     public string? Password { get; set; }
+
+    public bool Valid => !string.IsNullOrEmpty(UserName) &&
+                       !string.IsNullOrEmpty(Password);
 }
 
 #endregion
 
 #region Captcha Provider
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<CaptchaProvider>))]
 public enum CaptchaProvider
 {
     None,
-    GoogleRecaptcha,
+    HashPow,
     CloudflareTurnstile
+}
+
+public class HashPowConfig
+{
+    // How many leading zeros the hash should have
+    private int _difficulty = 18;
+
+    public int Difficulty
+    {
+        set => _difficulty = value;
+        get => _difficulty = Math.Clamp(_difficulty, 8, 48);
+    }
 }
 
 public class CaptchaConfig
@@ -310,14 +427,7 @@ public class CaptchaConfig
     public CaptchaProvider Provider { get; set; }
     public string? SecretKey { get; set; }
     public string? SiteKey { get; set; }
-
-    public GoogleRecaptchaConfig GoogleRecaptcha { get; set; } = new();
-}
-
-public class GoogleRecaptchaConfig
-{
-    public string VerifyApiAddress { get; set; } = "https://www.recaptcha.net/recaptcha/api/siteverify";
-    public float RecaptchaThreshold { get; set; } = 0.5f;
+    public HashPowConfig HashPow { get; set; } = new();
 }
 
 #endregion
@@ -330,13 +440,15 @@ public class TelemetryConfig
     public OpenTelemetryConfig OpenTelemetry { get; set; } = new();
     public AzureMonitorConfig AzureMonitor { get; set; } = new();
     public ConsoleConfig Console { get; set; } = new();
+
+    [JsonIgnore]
+    public bool Enable => Prometheus.Enable || OpenTelemetry.Enable || AzureMonitor.Enable || Console.Enable;
 }
 
 public class PrometheusConfig
 {
     public bool Enable { get; set; }
     public bool TotalNameSuffixForCounters { get; set; }
-    public ushort? Port { get; set; }
 }
 
 public class OpenTelemetryConfig
@@ -378,9 +490,9 @@ public class ForwardedOptions : ForwardedHeadersOptions
     public void ToForwardedHeadersOptions(ForwardedHeadersOptions options)
     {
         // assign the same value to the base class via reflection
-        Type type = typeof(ForwardedHeadersOptions);
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        foreach (PropertyInfo property in properties)
+        var type = typeof(ForwardedHeadersOptions);
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var property in properties)
         {
             // skip the properties that are not being set directly
             if (property.Name is nameof(KnownNetworks) or nameof(KnownProxies))
@@ -394,9 +506,9 @@ public class ForwardedOptions : ForwardedHeadersOptions
             // split the network into address and prefix length
             var parts = network.Split('/');
             if (parts.Length == 2 &&
-                IPAddress.TryParse(parts[0], out IPAddress? prefix) &&
+                IPAddress.TryParse(parts[0], out var prefix) &&
                 int.TryParse(parts[1], out var prefixLength))
-                options.KnownNetworks.Add(new IPNetwork(prefix, prefixLength));
+                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLength));
         });
 
         TrustedProxies?.ForEach(proxy => proxy.ResolveIP().ToList().ForEach(ip => options.KnownProxies.Add(ip)));

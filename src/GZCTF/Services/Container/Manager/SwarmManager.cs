@@ -1,4 +1,9 @@
-﻿using System.Net;
+﻿/*
+ * This file is protected and may not be modified without permission.
+ * See LICENSE_ADDENDUM.txt for details.
+ */
+
+using System.Net;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using GZCTF.Models.Internal;
@@ -19,7 +24,7 @@ public class SwarmManager : IContainerManager
         _meta = provider.GetMetadata();
         _client = provider.GetProvider();
 
-        logger.SystemLog(Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_SwarmMode)],
+        logger.SystemLog(StaticLocalizer[nameof(Resources.Program.ContainerManager_SwarmMode)],
             TaskStatus.Success,
             LogLevel.Debug);
     }
@@ -33,7 +38,7 @@ public class SwarmManager : IContainerManager
         catch (DockerContainerNotFoundException)
         {
             _logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDestroyed),
+                StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDestroyed),
                     container.ContainerId],
                 TaskStatus.Success, LogLevel.Debug);
         }
@@ -42,27 +47,20 @@ public class SwarmManager : IContainerManager
             if (e.StatusCode == HttpStatusCode.NotFound)
             {
                 _logger.SystemLog(
-                    Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDestroyed),
+                    StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDestroyed),
                         container.ContainerId],
                     TaskStatus.Success, LogLevel.Debug);
             }
             else
             {
-                _logger.SystemLog(
-                    Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailedStatus),
-                        container.ContainerId,
-                        e.StatusCode], TaskStatus.Failed, LogLevel.Warning);
-                _logger.SystemLog(
-                    Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailedResponse),
-                        container.ContainerId,
-                        e.ResponseBody], TaskStatus.Failed, LogLevel.Error);
+                _logger.LogDeletionFailedWithHttpContext(container.ContainerId, e.StatusCode, e.ResponseBody);
                 return;
             }
         }
         catch (Exception e)
         {
-            _logger.LogError(e,
-                Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailed),
+            _logger.LogErrorMessage(e,
+                StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailed),
                     container.ContainerId]);
             return;
         }
@@ -73,42 +71,57 @@ public class SwarmManager : IContainerManager
     public async Task<Models.Data.Container?> CreateContainerAsync(ContainerConfig config,
         CancellationToken token = default)
     {
+        var imageName = config.Image.Split("/").LastOrDefault()?.Split(":").FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(imageName))
+        {
+            _logger.SystemLog(
+                StaticLocalizer[nameof(Resources.Program.ContainerManager_UnresolvedImageName), config.Image],
+                TaskStatus.Failed, LogLevel.Warning);
+            return null;
+        }
+
         ServiceCreateParameters parameters = GetServiceCreateParameters(config);
-        var retry = 0;
         ServiceCreateResponse? serviceRes;
+        var retry = 0;
+
     CreateContainer:
         try
         {
+            if (retry++ >= 3)
+            {
+                _logger.SystemLog(
+                    StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerCreationFailed),
+                        parameters.Service.Name],
+                    TaskStatus.Failed,
+                    LogLevel.Warning);
+                return null;
+            }
+
             serviceRes = await _client.Swarm.CreateServiceAsync(parameters, token);
         }
         catch (DockerApiException e)
         {
-            if (e.StatusCode == HttpStatusCode.Conflict && retry < 3)
+            if (e.StatusCode == HttpStatusCode.Conflict)
             {
                 _logger.SystemLog(
-                    Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerExisted),
+                    StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerExisted),
                         parameters.Service.Name],
                     TaskStatus.Duplicate,
                     LogLevel.Warning);
+
                 await _client.Swarm.RemoveServiceAsync(parameters.Service.Name, token);
-                retry++;
+
                 goto CreateContainer;
             }
 
-            _logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerCreationFailedStatus),
-                    parameters.Service.Name,
-                    e.StatusCode], TaskStatus.Failed, LogLevel.Warning);
-            _logger.SystemLog(
-                Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerCreationFailedResponse),
-                    parameters.Service.Name,
-                    e.ResponseBody], TaskStatus.Failed, LogLevel.Error);
+            _logger.LogCreationFailedWithHttpContext(parameters.Service.Name, e.StatusCode, e.ResponseBody);
             return null;
         }
         catch (Exception e)
         {
-            _logger.LogError(e,
-                Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailed),
+            _logger.LogErrorMessage(e,
+                StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerDeletionFailed),
                     parameters.Service.Name]);
             return null;
         }
@@ -117,23 +130,25 @@ public class SwarmManager : IContainerManager
 
         retry = 0;
         SwarmService? res;
-        do
+        while (true)
         {
-            res = await _client.Swarm.InspectServiceAsync(container.ContainerId, token);
-            retry++;
-            if (retry == 3)
+            if (retry++ >= 3)
             {
                 _logger.SystemLog(
-                    Program.StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerPortNotExposed),
+                    StaticLocalizer[nameof(Resources.Program.ContainerManager_ContainerPortNotExposed),
                         container.ContainerId],
                     TaskStatus.Failed,
                     LogLevel.Warning);
                 return null;
             }
 
-            if (res is not { Endpoint.Ports.Count: > 0 })
-                await Task.Delay(500, token);
-        } while (res is not { Endpoint.Ports.Count: > 0 });
+            res = await _client.Swarm.InspectServiceAsync(container.ContainerId, token);
+
+            if (res is { Endpoint.Ports.Count: > 0 })
+                break;
+
+            await Task.Delay(500, token);
+        }
 
         // TODO: Test is needed
         container.Status = ContainerStatus.Running;
@@ -156,7 +171,7 @@ public class SwarmManager : IContainerManager
     ServiceCreateParameters GetServiceCreateParameters(ContainerConfig config) =>
         new()
         {
-            RegistryAuth = _meta.Auth,
+            RegistryAuth = _meta.AuthConfigs.GetForImage(config.Image),
             Service = new()
             {
                 Name = DockerMetadata.GetName(config),
@@ -175,10 +190,13 @@ public class SwarmManager : IContainerManager
                         new()
                         {
                             Image = config.Image,
+                            // The GZCTF identifier is protected by the License.
+                            // DO NOT REMOVE OR MODIFY THE FOLLOWING LINE.
+                            // Please see LICENSE_ADDENDUM.txt for details.
                             Env =
                                 config.Flag is null
                                     ? [$"GZCTF_TEAM_ID={config.TeamId}"]
-                                    : [$"GZCTF_FLAG={config.Flag}", $"GZCTF_TEAM_ID={config.TeamId}"],
+                                    : [$"GZCTF_FLAG={config.Flag}", $"GZCTF_TEAM_ID={config.TeamId}"]
                         },
                     Resources = new()
                     {
@@ -195,8 +213,7 @@ public class SwarmManager : IContainerManager
                     [
                         new()
                         {
-                            PublishMode = _meta.ExposePort ? "global" : "vip",
-                            TargetPort = (uint)config.ExposedPort
+                            PublishMode = _meta.ExposePort ? "global" : "vip", TargetPort = (uint)config.ExposedPort
                         }
                     ]
                 }

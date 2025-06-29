@@ -1,54 +1,56 @@
+using FluentStorage;
+using FluentStorage.Blobs;
+
 namespace GZCTF.Models.Request.Game;
 
 /// <summary>
-/// 队伍流量获取信息
+/// Team traffic information
 /// </summary>
 public class TeamTrafficModel
 {
     /// <summary>
-    /// 参与 Id
+    /// Participation ID
     /// </summary>
     public int Id { get; set; }
 
     /// <summary>
-    /// 队伍 Id
+    /// Team Id
     /// </summary>
     public int TeamId { get; set; }
 
     /// <summary>
-    /// 队伍名称
+    /// Team name
     /// </summary>
     public string? Name { get; set; }
 
     /// <summary>
-    /// 参赛所属组织
+    /// Division of participation
     /// </summary>
-    public string? Organization { get; set; }
+    public string? Division { get; set; }
 
     /// <summary>
-    /// 头像链接
+    /// Avatar URL
     /// </summary>
     public string? Avatar { get; set; }
 
     /// <summary>
-    /// 题目所捕获到的流量数量
+    /// Number of traffic captured by the challenge
     /// </summary>
     public int Count { get; set; }
 
-    internal static TeamTrafficModel FromParticipation(Participation part, int challengeId)
+    internal static async Task<TeamTrafficModel> FromParticipationAsync(Participation part, int challengeId,
+        IBlobStorage storage, CancellationToken token)
     {
-        var trafficPath = $"{FilePath.Capture}/{challengeId}/{part.Id}";
+        var path = StoragePath.Combine(PathHelper.Capture, challengeId.ToString(), part.Id.ToString());
 
         return new()
         {
             Id = part.Id,
             TeamId = part.Team.Id,
             Name = part.Team.Name,
-            Organization = part.Organization,
+            Division = part.Division,
             Avatar = part.Team.AvatarUrl,
-            Count = Directory.Exists(trafficPath)
-                ? Directory.GetFiles(trafficPath, "*", SearchOption.TopDirectoryOnly).Length
-                : 0
+            Count = (await storage.ListAsync(path, cancellationToken: token)).Count
         };
     }
 }

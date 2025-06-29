@@ -1,5 +1,6 @@
 import {
   Accordion,
+  ActionIcon,
   Avatar,
   Badge,
   Box,
@@ -26,20 +27,25 @@ import {
   mdiClose,
   mdiEmailOutline,
   mdiIdentifier,
+  mdiPencil,
   mdiPhoneOutline,
   mdiStar,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
+import { DivisionEditModal } from '@Components/admin/DivisionEditModal'
 import { ParticipationStatusControl } from '@Components/admin/ParticipationStatusControl'
-import WithGameEditTab from '@Components/admin/WithGameEditTab'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { WithGameEditTab } from '@Components/admin/WithGameEditTab'
+import { showErrorMsg } from '@Utils/Shared'
 import { useParticipationStatusMap } from '@Utils/Shared'
-import api, { ParticipationInfoModel, ParticipationStatus, ProfileUserInfoModel } from '@Api'
+import { useAdminGame } from '@Hooks/useGame'
+import api, { ParticipationEditModel, ParticipationInfoModel, ParticipationStatus, ProfileUserInfoModel } from '@Api'
 import classes from '@Styles/Accordion.module.css'
-import reviewClasses from './Review.module.css'
+import misc from '@Styles/Misc.module.css'
+import reviewClasses from '@Styles/Review.module.css'
 
 interface MemberItemProps {
   user: ProfileUserInfoModel
@@ -67,7 +73,9 @@ const MemberItem: FC<MemberItemProps> = (props) => {
         <Grid className={reviewClasses.root}>
           <Grid.Col span={3} className={reviewClasses.col}>
             <Icon path={mdiIdentifier} {...iconProps} />
-            <Text fw="bold">{user.userName}</Text>
+            <Text fw="bold" lineClamp={1}>
+              {user.userName}
+            </Text>
           </Grid.Col>
           <Grid.Col span={3} className={reviewClasses.col}>
             <Icon path={mdiBadgeAccountHorizontalOutline} {...iconProps} />
@@ -119,21 +127,22 @@ const MemberItem: FC<MemberItemProps> = (props) => {
 interface ParticipationItemProps {
   participation: ParticipationInfoModel
   disabled: boolean
-  setParticipationStatus: (id: number, status: ParticipationStatus) => Promise<void>
+  onEditDiv: () => void
+  setParticipation: (id: number, model: ParticipationEditModel) => Promise<void>
 }
 
 const ParticipationItem: FC<ParticipationItemProps> = (props) => {
-  const { participation, disabled, setParticipationStatus } = props
+  const { participation, disabled, onEditDiv, setParticipation } = props
   const part = useParticipationStatusMap().get(participation.status!)!
 
   const { t } = useTranslation()
 
   return (
     <Accordion.Item value={participation.id!.toString()}>
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Box className={misc.alignCenter} display="flex">
         <Accordion.Control>
-          <Group justify="space-between">
-            <Group>
+          <Group justify="space-between" wrap="nowrap">
+            <Group wrap="nowrap">
               <Avatar alt="avatar" src={participation.team?.avatar}>
                 {!participation.team?.name ? 'T' : participation.team.name.slice(0, 1)}
               </Avatar>
@@ -144,15 +153,22 @@ const ParticipationItem: FC<ParticipationItemProps> = (props) => {
                     : participation.team.name}
                 </Text>
                 <Text truncate size="sm" c="dimmed">
-                  {!participation.team?.bio
-                    ? t('admin.placeholder.games.participation.bio')
-                    : participation.team.bio}
+                  {!participation.team?.bio ? t('admin.placeholder.games.participation.bio') : participation.team.bio}
                 </Text>
               </Box>
             </Group>
-            <Group wrap="nowrap" justify="space-between" w="32%" miw="350px">
-              <Box>
-                <Text>{participation.organization}</Text>
+            <Group wrap="nowrap" justify="space-between" w="35%" miw="370px">
+              <Box w="10em">
+                {participation.division && (
+                  <Group gap={0} wrap="nowrap">
+                    <Text fw={500} truncate>
+                      {participation.division}
+                    </Text>
+                    <ActionIcon size="sm" onClick={onEditDiv} disabled={disabled}>
+                      <Icon path={mdiPencil} size={0.6} />
+                    </ActionIcon>
+                  </Group>
+                )}
                 <Text size="sm" c="dimmed" fw="bold">
                   {t('admin.content.games.review.participation.stats', {
                     count: participation.registeredMembers?.length ?? 0,
@@ -160,14 +176,14 @@ const ParticipationItem: FC<ParticipationItemProps> = (props) => {
                   })}
                 </Text>
               </Box>
-              <Center w="6em">
+              <Center miw="5.5em">
                 <Badge color={part.color}>{part.title}</Badge>
               </Center>
               <ParticipationStatusControl
                 disabled={disabled}
                 participateId={participation.id!}
                 status={participation.status!}
-                setParticipationStatus={setParticipationStatus}
+                setParticipation={setParticipation}
               />
             </Group>
           </Group>
@@ -179,9 +195,7 @@ const ParticipationItem: FC<ParticipationItemProps> = (props) => {
             <MemberItem
               key={user.userId}
               user={user}
-              isRegistered={
-                participation.registeredMembers?.some((u) => u === user.userId) ?? false
-              }
+              isRegistered={participation.registeredMembers?.some((u) => u === user.userId) ?? false}
               isCaptain={participation.team?.captainId === user.userId}
             />
           ))}
@@ -197,6 +211,8 @@ const GameTeamReview: FC = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const numId = parseInt(id ?? '-1')
+  const { game } = useAdminGame(numId)
+
   const [disabled, setDisabled] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<ParticipationStatus | null>(null)
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null)
@@ -204,15 +220,26 @@ const GameTeamReview: FC = () => {
   const [search, setSearch] = useInputState('')
   const participationStatusMap = useParticipationStatusMap()
 
+  const [divModalOpened, setDivModalOpened] = useState(false)
+  const [curParticipation, setCurParticipation] = useState<ParticipationInfoModel | null>(null)
+
   const { t } = useTranslation()
   const [activePage, setPage] = useState(1)
 
-  const setParticipationStatus = async (id: number, status: ParticipationStatus) => {
+  const setParticipation = async (id: number, model: ParticipationEditModel) => {
     setDisabled(true)
     try {
-      await api.admin.adminParticipation(id, status)
+      await api.admin.adminParticipation(id, model)
       setParticipations(
-        participations?.map((value) => (value.id === id ? { ...value, status } : value))
+        participations?.map((value) =>
+          value.id === id
+            ? {
+                ...value,
+                status: model.status ?? value.status,
+                division: model.division ?? value.division,
+              }
+            : value
+        )
       )
       showNotification({
         color: 'teal',
@@ -220,7 +247,7 @@ const GameTeamReview: FC = () => {
         icon: <Icon path={mdiCheck} size={1} />,
       })
     } catch (err: any) {
-      showErrorNotification(err, t)
+      showErrorMsg(err, t)
     } finally {
       setDisabled(false)
     }
@@ -241,19 +268,24 @@ const GameTeamReview: FC = () => {
       return
     }
 
-    api.game.gameParticipations(numId).then((res) => {
-      setParticipations(res.data)
-    })
-  }, [])
+    const fetchData = async () => {
+      try {
+        const res = await api.game.gameParticipations(numId)
+        setParticipations(res.data)
+      } catch (err: any) {
+        showErrorMsg(err, t)
+      }
+    }
 
-  const orgs = Array.from(new Set(participations?.map((p) => p.organization ?? '') ?? [])).filter(
-    (org) => !!org
-  )
+    fetchData()
+  }, [navigate, numId, t])
+
+  const divs = Array.from(new Set(participations?.map((p) => p.division ?? '') ?? [])).filter((div) => !!div)
 
   const filteredParticipations = participations?.filter(
     (participation) =>
       (selectedStatus === null || participation.status === selectedStatus) &&
-      (selectedOrg === null || participation.organization === selectedOrg) &&
+      (selectedOrg === null || participation.division === selectedOrg) &&
       (search === '' || participation.team?.name?.toLowerCase().includes(search.toLowerCase()))
   )
 
@@ -276,11 +308,11 @@ const GameTeamReview: FC = () => {
             rightSection={<Icon path={mdiAccountGroupOutline} size={1} />}
           />
           <Group justify="right" wrap="nowrap">
-            {orgs.length && (
+            {divs.length && (
               <Select
                 placeholder={t('admin.content.show_all')}
                 clearable
-                data={orgs.map((org) => ({ value: org, label: org }))}
+                data={divs.map((div) => ({ value: div, label: div }))}
                 value={selectedOrg}
                 onChange={(value) => setSelectedOrg(value)}
               />
@@ -297,7 +329,7 @@ const GameTeamReview: FC = () => {
       }
     >
       <ScrollArea type="never" pos="relative" h="calc(100vh - 250px)">
-        {!participations || participations.length === 0 ? (
+        {participations && participations.length === 0 ? (
           <Center h="calc(100vh - 200px)">
             <Stack gap={0}>
               <Title order={2}>{t('admin.content.games.review.empty.title')}</Title>
@@ -305,18 +337,17 @@ const GameTeamReview: FC = () => {
             </Stack>
           </Center>
         ) : (
-          <Accordion
-            variant="contained"
-            chevronPosition="left"
-            classNames={classes}
-            className={classes.root}
-          >
+          <Accordion variant="contained" chevronPosition="left" classNames={classes} className={classes.root}>
             {pagedParticipations?.map((participation) => (
               <ParticipationItem
                 key={participation.id}
                 participation={participation}
                 disabled={disabled}
-                setParticipationStatus={setParticipationStatus}
+                onEditDiv={() => {
+                  setCurParticipation(participation)
+                  setDivModalOpened(true)
+                }}
+                setParticipation={setParticipation}
               />
             ))}
           </Accordion>
@@ -325,15 +356,25 @@ const GameTeamReview: FC = () => {
       <Pagination
         value={activePage}
         onChange={setPage}
-        total={(filteredParticipations?.length ?? 0) / PART_NUM_PER_PAGE + 1}
-        styles={{
-          root: {
-            display: 'flex',
-            justifyContent: 'flex-end',
-            flexDirection: 'row',
-          },
+        total={Math.ceil((filteredParticipations?.length ?? 1) / PART_NUM_PER_PAGE)}
+        classNames={{
+          root: cx(misc.flex, misc.flexRow, misc.justifyEnd),
         }}
       />
+      {game?.divisions?.length && curParticipation && (
+        <DivisionEditModal
+          title={t('admin.content.games.review.edit_division')}
+          opened={divModalOpened}
+          divisions={game.divisions}
+          participateId={curParticipation?.id ?? -1}
+          currentDivision={curParticipation?.division ?? ''}
+          setParticipation={setParticipation}
+          onClose={() => {
+            setDivModalOpened(false)
+            setCurParticipation(null)
+          }}
+        />
+      )}
     </WithGameEditTab>
   )
 }

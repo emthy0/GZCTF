@@ -16,7 +16,7 @@ import {
 import { createStyles } from '@mantine/emotion'
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks'
 import { useEffect, useState } from 'react'
-import { useConfig } from '@Utils/useConfig'
+import { useConfig } from '@Hooks/useConfig'
 
 const CustomTheme: MantineThemeOverride = {
   colors: {
@@ -33,14 +33,14 @@ const CustomTheme: MantineThemeOverride = {
       '#141414',
     ],
     brand: [
-      '#D0FFF8',
-      '#A7F8EB',
-      '#64F0DA',
-      '#1DE9B6',
-      '#0AD7AF',
-      '#04CAAB',
-      '#02BFA5',
-      '#009985',
+      '#E1FFF9',
+      '#CFFCF1',
+      '#A2F7E2',
+      '#72F1D2',
+      '#4BEDC4',
+      '#2AE5B5',
+      '#18CB9E',
+      '#00AA85',
       '#007F6E',
       '#005A4C',
     ],
@@ -83,11 +83,11 @@ const CustomTheme: MantineThemeOverride = {
   },
   primaryColor: 'brand',
   fontFamily:
-    "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans CJK SC, sans-serif",
+    'IBM Plex Sans, -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans CJK SC, sans-serif',
   fontFamilyMonospace:
-    "'JetBrains Mono', ui-monospace, SFMono-Regular, Monaco, Consolas, 'Courier New', monospace, 'IBM Plex Sans', sans-serif",
+    'JetBrains Mono, ui-monospace, SFMono-Regular, Monaco, Consolas, Courier New, monospace, sans-serif',
   headings: {
-    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontFamily: 'IBM Plex Sans, sans-serif',
   },
   breakpoints: {
     xs: '30em',
@@ -166,41 +166,80 @@ const CustomTheme: MantineThemeOverride = {
   },
 }
 
+export enum ColorProvider {
+  Managed = 'Managed',
+  Default = 'Default',
+  Custom = 'Custom',
+}
+
+export interface CustomColor {
+  provider: ColorProvider
+  color: string
+}
+
 export const useCustomColor = () => {
-  const [color, setColorInner] = useLocalStorage({
+  const [customColor, setCustomColorInner] = useLocalStorage<CustomColor>({
     key: 'custom-theme',
-    defaultValue: '',
+    defaultValue: { provider: ColorProvider.Managed, color: '' } as CustomColor,
     getInitialValueInEffect: false,
+    serialize: (value: CustomColor) => {
+      if (value.provider === ColorProvider.Custom && /^#[0-9A-F]{6}$/i.test(value.color)) {
+        return value.color
+      } else if (value.provider === ColorProvider.Managed) {
+        return ''
+      } else {
+        return 'brand'
+      }
+    },
+    deserialize: (value?: string) => {
+      if (typeof value !== 'string') return { provider: ColorProvider.Managed, color: '' }
+
+      if (value === 'brand') {
+        return { provider: ColorProvider.Default, color: '' }
+      } else if (/^#[0-9A-F]{6}$/i.test(value)) {
+        return { provider: ColorProvider.Custom, color: value }
+      } else {
+        return { provider: ColorProvider.Managed, color: '' }
+      }
+    },
   })
 
-  const setCustomColor = (newColor: string) => {
-    if (newColor === color) return
+  const setCustomColor = (color: CustomColor) => {
+    // validate custom color, do not save invalid values
+    if (color.provider === ColorProvider.Custom && !/^#[0-9A-F]{6}$/i.test(color.color)) return
 
-    if (/^#[0-9A-F]{6}$/i.test(newColor) || newColor === 'brand') {
-      setColorInner(newColor)
-    } else {
-      setColorInner('')
-    }
+    setCustomColorInner(color)
   }
 
   // color: null for use platform color, 'brand' for default theme
   //        or hex color string for custom color
-  return { color, setCustomColor }
+  return { customColor, setCustomColor }
 }
 
 export const useCustomTheme = () => {
   const { config } = useConfig()
-  const { color } = useCustomColor()
+  const { customColor } = useCustomColor()
 
-  const testColor = (color: string | null | undefined) => {
-    return color && /^#[0-9A-F]{6}$/i.test(color) ? color : undefined
+  const resolveManaged = (color: string | null | undefined) => {
+    return color && /^#[0-9A-F]{6}$/i.test(color) ? color : null
   }
 
   const [theme, setTheme] = useState<MantineThemeOverride>(createTheme(CustomTheme))
 
   useEffect(() => {
-    const resolvedColor = testColor(color) || testColor(config.customTheme)
-    if (resolvedColor && color !== 'brand') {
+    if (customColor.provider === ColorProvider.Default) {
+      setTheme(CustomTheme)
+      return
+    }
+
+    const resolvedColor =
+      customColor.provider === ColorProvider.Custom
+        ? customColor.color
+        : customColor.provider === ColorProvider.Managed
+          ? resolveManaged(config.customTheme)
+          : null
+
+    if (resolvedColor) {
       setTheme({
         ...CustomTheme,
         colors: {
@@ -220,7 +259,7 @@ export const useCustomTheme = () => {
     } else {
       setTheme(CustomTheme)
     }
-  }, [color, config.customTheme])
+  }, [customColor, config.customTheme])
 
   return { theme }
 }
@@ -235,10 +274,11 @@ interface UseDisplayInputStylesProps {
   ff?: 'monospace' | 'text'
   fw?: React.CSSProperties['fontWeight']
   lh?: React.CSSProperties['lineHeight']
+  cs?: React.CSSProperties['cursor']
 }
 
 export const useDisplayInputStyles = createStyles(
-  (theme, { fw = 'normal', lh = '1.5rem', ff = 'text' }: UseDisplayInputStylesProps) => ({
+  (theme, { fw = 'normal', lh = '1.5rem', ff = 'text', cs = 'auto' }: UseDisplayInputStylesProps) => ({
     wrapper: {
       width: '100%',
     },
@@ -247,7 +287,7 @@ export const useDisplayInputStyles = createStyles(
       fontFamily: ff === 'text' ? theme.fontFamily : theme.fontFamilyMonospace,
       height: lh,
       lineHeight: lh,
-      cursor: 'auto',
+      cursor: cs,
       userSelect: 'none',
       minHeight: '1rem',
       maxHeight: '2rem',

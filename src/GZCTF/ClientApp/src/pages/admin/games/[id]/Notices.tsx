@@ -5,13 +5,13 @@ import { mdiCheck, mdiPlus } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { useParams } from 'react-router'
 import { InlineMarkdown } from '@Components/MarkdownRenderer'
-import GameNoticeEditCard from '@Components/admin/GameNoticeEditCard'
-import GameNoticeEditModal from '@Components/admin/GameNoticeEditModal'
-import WithGameTab from '@Components/admin/WithGameEditTab'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { OnceSWRConfig } from '@Utils/useConfig'
+import { GameNoticeEditCard } from '@Components/admin/GameNoticeEditCard'
+import { GameNoticeEditModal } from '@Components/admin/GameNoticeEditModal'
+import { WithGameEditTab } from '@Components/admin/WithGameEditTab'
+import { showErrorMsg } from '@Utils/Shared'
+import { OnceSWRConfig } from '@Hooks/useConfig'
 import api, { GameNotice } from '@Api'
 
 const GameNoticeEdit: FC = () => {
@@ -40,22 +40,22 @@ const GameNoticeEdit: FC = () => {
       confirmProps: { color: 'red' },
     })
   }
-  const onConfirmDelete = (gameNotice: GameNotice) => {
-    api.edit
-      .editDeleteGameNotice(numId, gameNotice.id)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('admin.notification.games.notices.deleted'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutate(gameNotices?.filter((t) => t.id !== gameNotice.id) ?? [])
+  const onConfirmDelete = async (gameNotice: GameNotice) => {
+    try {
+      await api.edit.editDeleteGameNotice(numId, gameNotice.id)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.games.notices.deleted'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((e) => showErrorNotification(e, t))
+      mutate(gameNotices?.filter((t) => t.id !== gameNotice.id) ?? [])
+    } catch (e) {
+      showErrorMsg(e, t)
+    }
   }
 
   return (
-    <WithGameTab
+    <WithGameEditTab
       headProps={{ justify: 'space-between' }}
       contentPos="right"
       head={
@@ -107,7 +107,7 @@ const GameNoticeEdit: FC = () => {
           mutate([gameNotice, ...(gameNotices?.filter((n) => n.id !== gameNotice.id) ?? [])])
         }}
       />
-    </WithGameTab>
+    </WithGameEditTab>
   )
 }
 

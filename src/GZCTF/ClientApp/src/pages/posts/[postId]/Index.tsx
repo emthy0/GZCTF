@@ -16,13 +16,13 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
-import Markdown from '@Components/MarkdownRenderer'
-import WithNavBar from '@Components/WithNavbar'
+import { Link, useNavigate, useParams } from 'react-router'
+import { Markdown } from '@Components/MarkdownRenderer'
+import { WithNavBar } from '@Components/WithNavbar'
 import { RequireRole } from '@Components/WithRole'
 import { useLanguage } from '@Utils/I18n'
-import { usePageTitle } from '@Utils/usePageTitle'
-import { useUserRole } from '@Utils/useUser'
+import { usePageTitle } from '@Hooks/usePageTitle'
+import { useUserRole } from '@Hooks/useUser'
 import api, { Role } from '@Api'
 import classes from '@Styles/Banner.module.css'
 import btnClasses from '@Styles/FixedButton.module.css'
@@ -39,7 +39,7 @@ const Post: FC = () => {
       navigate('/404')
       return
     }
-  }, [postId])
+  }, [postId, navigate])
 
   const { data: post } = api.info.useInfoGetPost(
     postId ?? '',
@@ -51,7 +51,7 @@ const Post: FC = () => {
   )
 
   const { scrollIntoView, targetRef } = useScrollIntoView<HTMLDivElement>()
-  useEffect(() => scrollIntoView({ alignment: 'center' }), [])
+  useEffect(() => scrollIntoView({ alignment: 'center' }), [scrollIntoView])
 
   const { role } = useUserRole()
   const { colorScheme } = useMantineColorScheme()
@@ -62,23 +62,11 @@ const Post: FC = () => {
   return (
     <WithNavBar width="100%" isLoading={!post} minWidth={0} withFooter>
       <div ref={targetRef} className={classes.root}>
-        <Stack
-          gap={6}
-          align="center"
-          w="100%"
-          p={`0 ${theme.spacing.xs}`}
-          className={classes.container}
-        >
-          <Title order={2} pb="1.5rem" className={classes.title} style={{ fontSize: 36 }}>
+        <Stack gap={6} align="center" w="100%" p={`0 ${theme.spacing.xs}`} className={classes.container}>
+          <Title order={2} pb="1.5rem" fz={36} className={classes.title}>
             {post?.title}
           </Title>
-          <Avatar
-            alt="avatar"
-            src={post?.authorAvatar}
-            color={theme.primaryColor}
-            radius="xl"
-            size="lg"
-          >
+          <Avatar alt="avatar" src={post?.authorAvatar} color={theme.primaryColor} radius="xl" size="lg">
             {post?.authorName?.slice(0, 1) ?? 'A'}
           </Avatar>
           <Text fw="bold">{post?.authorName ?? 'Anonym'}</Text>
@@ -113,12 +101,13 @@ const Post: FC = () => {
       </Container>
       {RequireRole(Role.Admin, role) && (
         <Button
+          component={Link}
           className={btnClasses.root}
           variant="filled"
           radius="xl"
           size="md"
           leftSection={<Icon path={mdiPencilOutline} size={1} />}
-          onClick={() => navigate(`/posts/${postId}/edit`)}
+          to={`/posts/${postId}/edit`}
         >
           {t('post.button.edit')}
         </Button>

@@ -4,6 +4,7 @@ import {
   Avatar,
   Menu,
   MenuDivider,
+  Popover,
   Stack,
   Tooltip,
   useMantineColorScheme,
@@ -23,18 +24,22 @@ import {
   mdiWeatherNight,
   mdiWeatherSunny,
   mdiWrenchOutline,
+  mdiTransitConnectionVariant,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import LogoBox from '@Components/LogoBox'
+import { Link, useLocation } from 'react-router'
+import { LogoBox } from '@Components/LogoBox'
 import { AppControlProps } from '@Components/WithNavbar'
+import { WsrxManager } from '@Components/WsrxManager'
 import { LanguageMap, SupportedLanguages, useLanguage } from '@Utils/I18n'
-import { clearLocalCache } from '@Utils/useConfig'
-import { useLogOut, useUser } from '@Utils/useUser'
-import { Role } from '@Api'
-import classes from '@Styles/AppNavBar.module.css'
+import { clearLocalCache, useConfig } from '@Hooks/useConfig'
+import { useLogOut, useUser } from '@Hooks/useUser'
+import { ContainerPortMappingType, Role } from '@Api'
+import classes from '@Styles/AppNavbar.module.css'
+import misc from '@Styles/Misc.module.css'
 
 interface NavbarItem {
   icon: string
@@ -69,13 +74,13 @@ const NavbarLink: FC<NavbarLinkProps> = (props: NavbarLinkProps) => {
   )
 }
 
-const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
+export const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
   const location = useLocation()
-  const navigate = useNavigate()
   const { colorScheme, toggleColorScheme } = useMantineColorScheme()
 
   const logout = useLogOut()
   const { user, error } = useUser()
+  const { config } = useConfig()
   const { t } = useTranslation()
   const { setLanguage, supportedLanguages } = useLanguage()
 
@@ -117,18 +122,30 @@ const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
     <AppShell.Navbar className={classes.navbar}>
       {/* Logo */}
       <AppShell.Section grow>
-        <LogoBox ignoreTheme size="100%" className={classes.logo} onClick={() => navigate('/')} />
+        <LogoBox size="100%" className={classes.logo} component={Link} to="/" />
       </AppShell.Section>
 
       {/* Common Nav */}
-      <AppShell.Section className={classes.section} style={{ justifyContent: 'center' }}>
-        {links}
-      </AppShell.Section>
+      <AppShell.Section className={cx(classes.section, misc.justifyCenter)}>{links}</AppShell.Section>
 
-      <AppShell.Section className={classes.section} style={{ justifyContent: 'end' }}>
+      <AppShell.Section className={cx(classes.section, misc.justifyEnd)}>
         <Stack w="100%" align="center" justify="center" gap={5}>
+          {/* WebSocket Reflector X Integration */}
+          {config.portMapping === ContainerPortMappingType.PlatformProxy && (
+            <Popover position="right" offset={24} width={320}>
+              <Popover.Target>
+                <ActionIcon className={classes.link}>
+                  <Icon path={mdiTransitConnectionVariant} size={1} />
+                </ActionIcon>
+              </Popover.Target>
+              <Popover.Dropdown>
+                <WsrxManager />
+              </Popover.Dropdown>
+            </Popover>
+          )}
+
           {/* Language */}
-          <Menu position="right-end" offset={24} width={160}>
+          <Menu position="right" offset={24} width={160}>
             <Menu.Target>
               <ActionIcon className={classes.link}>
                 <Icon path={mdiTranslate} size={1} />
@@ -147,8 +164,7 @@ const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
           {/* Color Mode */}
           <Tooltip
             label={t('common.tab.theme.switch_to', {
-              theme:
-                colorScheme === 'dark' ? t('common.tab.theme.light') : t('common.tab.theme.dark'),
+              theme: colorScheme === 'dark' ? t('common.tab.theme.light') : t('common.tab.theme.dark'),
             })}
             classNames={classes}
             position="right"
@@ -196,11 +212,7 @@ const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
               </Menu.Item>
               <MenuDivider />
               {loggedIn ? (
-                <Menu.Item
-                  color="red"
-                  onClick={logout}
-                  leftSection={<Icon path={mdiLogout} size={1} />}
-                >
+                <Menu.Item color="red" onClick={logout} leftSection={<Icon path={mdiLogout} size={1} />}>
                   {t('common.tab.account.logout')}
                 </Menu.Item>
               ) : (
@@ -219,5 +231,3 @@ const AppNavbar: FC<AppControlProps> = ({ openColorModal }) => {
     </AppShell.Navbar>
   )
 }
-
-export default AppNavbar

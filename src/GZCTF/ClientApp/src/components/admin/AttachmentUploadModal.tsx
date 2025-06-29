@@ -22,13 +22,13 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useEditChallenge } from '@Utils/useEdit'
+import { useParams } from 'react-router'
+import { showErrorMsg } from '@Utils/Shared'
+import { useEditChallenge } from '@Hooks/useEdit'
 import api, { FileType } from '@Api'
 import uploadClasses from '@Styles/Upload.module.css'
 
-const AttachmentUploadModal: FC<ModalProps> = (props) => {
+export const AttachmentUploadModal: FC<ModalProps> = (props) => {
   const { id, chalId } = useParams()
   const [numId, numCId] = [parseInt(id ?? '-1'), parseInt(chalId ?? '-1')]
   const uploadFileName = `DYN_ATTACHMENT_${numCId}`
@@ -44,7 +44,7 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
 
   const { t } = useTranslation()
 
-  const onUpload = () => {
+  const onUpload = async () => {
     if (files.length <= 0) {
       showNotification({
         color: 'red',
@@ -57,8 +57,8 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
     setProgress(0)
     setDisabled(true)
 
-    api.assets
-      .assetsUpload(
+    try {
+      const data = await api.assets.assetsUpload(
         {
           files,
         },
@@ -69,40 +69,34 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
           },
         }
       )
-      .then((data) => {
-        setProgress(95)
-        if (data.data) {
-          api.edit
-            .editAddFlags(
-              numId,
-              numCId,
-              data.data.map((f, idx) => ({
-                flag: files[idx].name,
-                attachmentType: FileType.Local,
-                fileHash: f.hash,
-              }))
-            )
-            .then(() => {
-              setProgress(0)
-              showNotification({
-                color: 'teal',
-                message: t('admin.notification.games.challenges.attachment.updated'),
-                icon: <Icon path={mdiCheck} size={1} />,
-              })
-              setFiles([])
-              mutate()
-              props.onClose()
-            })
-            .catch((err) => showErrorNotification(err, t))
-            .finally(() => {
-              setDisabled(false)
-            })
-        }
-      })
-      .catch((err) => showErrorNotification(err, t))
-      .finally(() => {
-        setDisabled(false)
-      })
+
+      setProgress(95)
+      if (data.data) {
+        await api.edit.editAddFlags(
+          numId,
+          numCId,
+          data.data.map((f, idx) => ({
+            flag: files[idx].name,
+            attachmentType: FileType.Local,
+            fileHash: f.hash,
+          }))
+        )
+
+        setProgress(0)
+        showNotification({
+          color: 'teal',
+          message: t('admin.notification.games.challenges.attachment.updated'),
+          icon: <Icon path={mdiCheck} size={1} />,
+        })
+        setFiles([])
+        mutate()
+        props.onClose()
+      }
+    } catch (err) {
+      showErrorMsg(err, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (
@@ -126,12 +120,8 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
               <Overlay opacity={0.3} color={colorScheme === 'dark' ? 'black' : 'white'} />
               <Center h="calc(40vh - 20px)">
                 <Stack gap={0}>
-                  <Title order={2}>
-                    {t('admin.placeholder.games.challenges.attachment.no_file_selected.title')}
-                  </Title>
-                  <Text>
-                    {t('admin.placeholder.games.challenges.attachment.no_file_selected.comment')}
-                  </Text>
+                  <Title order={2}>{t('admin.placeholder.games.challenges.attachment.no_file_selected.title')}</Title>
+                  <Text>{t('admin.placeholder.games.challenges.attachment.no_file_selected.comment')}</Text>
                 </Stack>
               </Center>
             </>
@@ -167,9 +157,7 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
             color={progress !== 0 ? 'cyan' : theme.primaryColor}
           >
             <div className={uploadClasses.label}>
-              {progress !== 0
-                ? t('common.button.uploading')
-                : t('admin.button.challenges.flag.add.dynamic')}
+              {progress !== 0 ? t('common.button.uploading') : t('admin.button.challenges.flag.add.dynamic')}
             </div>
             {progress !== 0 && (
               <Progress
@@ -185,5 +173,3 @@ const AttachmentUploadModal: FC<ModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default AttachmentUploadModal

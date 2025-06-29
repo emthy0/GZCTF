@@ -14,10 +14,12 @@ import {
 } from '@mantine/core'
 import { mdiFlag } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import dayjs from 'dayjs'
 import { FC } from 'react'
 import { Trans } from 'react-i18next'
-import { BloodsTypes, PartialIconProps, useChallengeTagLabelMap } from '@Utils/Shared'
+import { useLanguage } from '@Utils/I18n'
+import { BloodsTypes, PartialIconProps, useChallengeCategoryLabelMap } from '@Utils/Shared'
 import { ChallengeInfo, SubmissionType } from '@Api'
 import classes from '@Styles/ChallengeCard.module.css'
 import hoverClasses from '@Styles/HoverCard.module.css'
@@ -32,30 +34,28 @@ interface ChallengeCardProps {
   teamId?: number
 }
 
-const ChallengeCard: FC<ChallengeCardProps> = (props: ChallengeCardProps) => {
+export const ChallengeCard: FC<ChallengeCardProps> = (props: ChallengeCardProps) => {
   const { challenge, solved, onClick, iconMap, teamId, colorMap } = props
-  const challengeTagLabelMap = useChallengeTagLabelMap()
-  const tagData = challengeTagLabelMap.get(challenge.tag!)
+  const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
+  const cateData = challengeCategoryLabelMap.get(challenge.category!)
   const theme = useMantineTheme()
+  const { locale } = useLanguage()
 
   return (
-    <Card onClick={onClick} radius="md" shadow="sm" className={hoverClasses.root}>
-      <Stack gap="sm" pos="relative" style={{ zIndex: 99 }}>
+    <Card
+      onClick={onClick}
+      radius="md"
+      shadow="sm"
+      className={cx(hoverClasses.root, classes.root)}
+      data-solved={solved || undefined}
+    >
+      <Stack gap="xs" pos="relative" style={{ zIndex: 99 }}>
         <Group h="30px" wrap="nowrap" justify="space-between" gap={2}>
           <Text fw="bold" truncate fz="lg">
             {challenge.title}
           </Text>
-          <Center miw="1.5em">
-            {solved && (
-              <Icon
-                size={1}
-                path={mdiFlag}
-                color={theme.colors[tagData?.color ?? theme.primaryColor][5]}
-              />
-            )}
-          </Center>
         </Group>
-        <Divider />
+        <Divider size="sm" color={cateData?.color} />
         <Group wrap="nowrap" justify="space-between" align="center" gap={2}>
           <Text ta="center" fw="bold" fz="lg" ff="monospace">
             {challenge.score}&nbsp;pts
@@ -91,7 +91,7 @@ const ChallengeCard: FC<ChallengeCardProps> = (props: ChallengeCardProps) => {
                             {blood?.name}
                           </Text>
                           <Text fw={500} size="xs" c="dimmed">
-                            {dayjs(blood?.submitTimeUtc).format('YY/MM/DD HH:mm:ss')}
+                            {dayjs(blood?.submitTimeUtc).locale(locale).format('SLL LTS')}
                           </Text>
                         </Stack>
                       }
@@ -115,22 +115,19 @@ const ChallengeCard: FC<ChallengeCardProps> = (props: ChallengeCardProps) => {
           </Stack>
         </Group>
       </Stack>
-      {tagData && (
+      {cateData && (
         <Icon
           size={4}
-          path={tagData.icon}
-          color={alpha(theme.colors[tagData?.color][7], 0.3)}
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            transform: 'translateY(35%)',
-            zIndex: 90,
-          }}
+          path={cateData.icon}
+          color={alpha(theme.colors[cateData?.color][7], 0.3)}
+          className={classes.icon}
         />
+      )}
+      {solved && (
+        <Center className={classes.flag}>
+          <Icon size={1} path={mdiFlag} />
+        </Center>
       )}
     </Card>
   )
 }
-
-export default ChallengeCard

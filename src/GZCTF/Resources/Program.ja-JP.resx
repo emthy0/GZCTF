@@ -112,10 +112,12 @@
     <value>2.0</value>
   </resheader>
   <resheader name="reader">
-    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+    </value>
   </resheader>
   <resheader name="writer">
-    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089
+    </value>
   </resheader>
   <data name="Account_AvailableEmailDomain" xml:space="preserve">
     <value>有効なメールドメイン：{0}</value>
@@ -267,14 +269,11 @@
   <data name="Cache_NoMatchingRequest" xml:space="preserve">
     <value>キャッシュ更新ワーカーに一致するリクエストが見つかりませんでした：{0}</value>
   </data>
-  <data name="Cache_Rebuilt" xml:space="preserve">
-    <value>キャッシュが再構築されました：{0} @ {1} bytes</value>
-  </data>
   <data name="Cache_Stopped" xml:space="preserve">
     <value>キャッシュの更新が停止されました</value>
   </data>
   <data name="Cache_Updated" xml:space="preserve">
-    <value>キャッシュが更新されました：{0} @ {1} bytes</value>
+    <value>キャッシュが更新されました：{0}[{1}] @ {2} bytes</value>
   </data>
   <data name="Cache_UpdateWorkerFailed" xml:space="preserve">
     <value>キャッシュ更新ワーカーが更新に失敗しました：{0} @ {1}</value>
@@ -395,6 +394,12 @@
   </data>
   <data name="CronJob_Stopped" xml:space="preserve">
     <value>スケジュールされたタスクが停止されました</value>
+  </data>
+  <data name="CronJob_ExecuteFailed" xml:space="preserve">
+    <value>CronJob {0} の実行に失敗しました：{1}</value>
+  </data>
+  <data name="CronJob_LaunchedWatchDog" xml:space="preserve">
+    <value>別のインスタンスが CronJob を保持しているので、ウォッチドッグを実行しましょう。</value>
   </data>
   <data name="Database_ConnectionFailed" xml:space="preserve">
     <value>データベースに接続できませんでした({0})、データベースの接続文字列を確認してください</value>
@@ -531,8 +536,8 @@
   <data name="Game_InvalidInvitationCode" xml:space="preserve">
     <value>無効なゲーム招待コード</value>
   </data>
-  <data name="Game_InvalidOrganization" xml:space="preserve">
-    <value>無効な参戦組織</value>
+  <data name="Game_InvalidDivision" xml:space="preserve">
+    <value>無効な参加区分</value>
   </data>
   <data name="Game_JoinSucceeded" xml:space="preserve">
     <value>{0} はゲーム {1} に正常に参加しました</value>
@@ -562,7 +567,7 @@
     <value>提出は見つかりませんでした</value>
   </data>
   <data name="Game_TeamMemberLimitExceeded" xml:space="preserve">
-    <value>チームの参加者数が制限を超えています</value>
+    <value>チームの参加者数の上限を達しました</value>
   </data>
   <data name="Game_WriteupSubmitted" xml:space="preserve">
     <value>{0} は {1} の記事を正常に提出しました</value>
@@ -572,6 +577,9 @@
   </data>
   <data name="Header_Challenge" xml:space="preserve">
     <value>チャレンジ</value>
+  </data>
+  <data name="Header_RealName" xml:space="preserve">
+    <value>氏名</value>
   </data>
   <data name="Header_Email" xml:space="preserve">
     <value>メール</value>
@@ -754,7 +762,7 @@
     <value>{0} にメールを送信します</value>
   </data>
   <data name="MailSender_Template" xml:space="preserve">
-      <value>&lt;head&gt;    &lt;meta content="text/html; charset=utf-8" http-equiv="Content-Type"/&gt;&lt;/head&gt;&lt;body&gt;&lt;div style="max-width: 544px; margin: 0 auto; padding: 20px"&gt;    &lt;h2 style="text-align: center"&gt;{title}&lt;/h2&gt;    &lt;p&gt;ようこそ，{userName}！&lt;/p&gt;    &lt;p style="text-indent: 2em"&gt;{information}&lt;/p&gt;    &lt;p style="text-align: center; padding: 20px"&gt;        &lt;a                href="{url}"                style="          font: 1rem Arial;          white-space: nowrap;          text-decoration: none;          background-color: #000000;          color: #ffffff;          padding: 10px 20px 10px 20px;          border: 1px solid #888888;          border-radius: 7px;          margin: 10px auto;        "        &gt;            {btnmsg}        &lt;/a&gt;    &lt;/p&gt;    &lt;div style="font-size: 0.8rem"&gt;        &lt;p&gt;            上のボタンが機能しない場合は、このリンクをブラウザにコピーしてアクセスしてください：&lt;br/&gt;&lt;span                style="word-break: break-all; font: 0.8em monospace"        &gt;{url}        &lt;/span&gt;        &lt;/p&gt;        &lt;p&gt;このメールに心当たりがない場合はこのメールを無視してください。&lt;/p&gt;    &lt;/div&gt;    &lt;p style="font-size: 0.7em; text-align: right; color: #333"&gt;{platform} @ {nowtime}&lt;/p&gt;&lt;/div&gt;&lt;/body&gt;</value>
+    <value>&lt;head&gt;&lt;meta content="text/html; charset=utf-8" http-equiv="Content-Type"/&gt;&lt;/head&gt;&lt;body&gt;&lt;div style="max-width: 544px; margin: 0 auto; padding: 20px"&gt;&lt;h2 style="text-align: center"&gt;{title}&lt;/h2&gt;&lt;p&gt;ようこそ，{userName}！&lt;/p&gt;&lt;p style="text-indent: 2em"&gt;{information}&lt;/p&gt;&lt;p style="text-align: center; padding: 20px"&gt;&lt;a href="{url}" style="font: 1rem Arial;white-space: nowrap;text-decoration: none;background-color: #000000;color: #ffffff;padding: 10px 20px 10px 20px;border: 1px solid #888888;border-radius: 7px;margin: 10px auto;"&gt;{btnmsg}&lt;/a&gt;&lt;/p&gt;&lt;div style="font-size: 0.8rem"&gt;&lt;p&gt;上のボタンが機能しない場合は、このリンクをブラウザにコピーしてアクセスしてください：&lt;br/&gt;&lt;span style="word-break: break-all; font: 0.8em monospace"&gt;{url}&lt;/span&gt;&lt;/p&gt;&lt;p&gt;このメールに心当たりがない場合はこのメールを無視してください。&lt;/p&gt;&lt;/div&gt;&lt;p style="font-size: 0.7em; text-align: right; color: #333"&gt;{platform} @ {nowtime}&lt;/p&gt;&lt;/div&gt;&lt;/body&gt;</value>
   </data>
   <data name="MailSender_VerifyEmailButton" xml:space="preserve">
     <value>メールを確認する</value>
@@ -852,8 +860,8 @@
   <data name="Scoreboard_AllSubmissions" xml:space="preserve">
     <value>すべて提出します</value>
   </data>
-  <data name="Scoreboard_BelongingOrganization" xml:space="preserve">
-    <value>所属組織</value>
+  <data name="Scoreboard_BelongingDivision" xml:space="preserve">
+    <value>参加区分</value>
   </data>
   <data name="Scoreboard_TeamNotLoaded" xml:space="preserve">
     <value>チームがロードされていません</value>
@@ -987,8 +995,8 @@
   <data name="Team_MemberRemoved" xml:space="preserve">
     <value>チーム {0} から {1} を追放しました</value>
   </data>
-  <data name="Team_MultipleCreationNotAllowed" xml:space="preserve">
-    <value>複数のチームを作成することはできません</value>
+  <data name="Team_ExceededCreationLimit" xml:space="preserve">
+    <value>所有チーム数の上限を達しました</value>
   </data>
   <data name="Team_NameEmpty" xml:space="preserve">
     <value>チーム名は空にできません</value>
@@ -1033,6 +1041,15 @@
     <value>サーバーで内部エラーが発生しました</value>
   </data>
   <data name="Admin_LogoUpdateFailed" xml:space="preserve">
-      <value>プラットフォームアイコンの更新に失敗しました</value>
+    <value>プラットフォームアイコンの更新に失敗しました</value>
+  </data>
+  <data name="MailSender_ConnectedToSmtp" xml:space="preserve">
+    <value>SMTPサーバーへの接続に成功しました：{0}</value>
+  </data>
+  <data name="MailSender_InvalidEmailConfig" xml:space="preserve">
+    <value>無効な電子メール設定ですが、電子メール認証は有効です</value>
+  </data>
+  <data name="Init_StorageInitFailed" xml:space="preserve">
+    <value>ストレージプロバイダーの初期化に失敗しました：{0}</value>
   </data>
 </root>

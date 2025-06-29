@@ -22,14 +22,15 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import PasswordChangeModal from '@Components/PasswordChangeModal'
-import WithNavBar from '@Components/WithNavbar'
-import { showErrorNotification, tryGetErrorMsg } from '@Utils/ApiHelper'
+import { PasswordChangeModal } from '@Components/PasswordChangeModal'
+import { WithNavBar } from '@Components/WithNavbar'
+import { showErrorMsg, tryGetErrorMsg } from '@Utils/Shared'
 import { IMAGE_MIME_TYPES } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
-import { usePageTitle } from '@Utils/usePageTitle'
-import { useUser } from '@Utils/useUser'
+import { usePageTitle } from '@Hooks/usePageTitle'
+import { useUser } from '@Hooks/useUser'
 import api, { ProfileUpdateModel } from '@Api'
+import misc from '@Styles/Misc.module.css'
 
 const Profile: FC = () => {
   const [dropzoneOpened, setDropzoneOpened] = useState(false)
@@ -67,7 +68,7 @@ const Profile: FC = () => {
     })
   }, [user])
 
-  const onChangeAvatar = () => {
+  const onChangeAvatar = async () => {
     if (!avatarFile) return
 
     setDisabled(true)
@@ -80,75 +81,70 @@ const Profile: FC = () => {
       autoClose: false,
     })
 
-    api.account
-      .accountAvatar({
-        file: avatarFile,
+    try {
+      await api.account.accountAvatar({ file: avatarFile })
+      updateNotification({
+        id: 'upload-avatar',
+        color: 'teal',
+        message: t('common.avatar.uploaded'),
+        icon: <Icon path={mdiCheck} size={1} />,
+        autoClose: true,
+        loading: false,
       })
-      .then(() => {
-        updateNotification({
-          id: 'upload-avatar',
-          color: 'teal',
-          message: t('common.avatar.uploaded'),
-          icon: <Icon path={mdiCheck} size={1} />,
-          autoClose: true,
-          loading: false,
-        })
-        setDisabled(false)
-        mutate()
-        setAvatarFile(null)
+      setDisabled(false)
+      mutate()
+      setAvatarFile(null)
+    } catch (err) {
+      updateNotification({
+        id: 'upload-avatar',
+        color: 'red',
+        title: t('common.avatar.upload_failed'),
+        message: tryGetErrorMsg(err, t),
+        icon: <Icon path={mdiClose} size={1} />,
+        autoClose: true,
+        loading: false,
       })
-      .catch((err) => {
-        updateNotification({
-          id: 'upload-avatar',
-          color: 'red',
-          title: t('common.avatar.upload_failed'),
-          message: tryGetErrorMsg(err, t),
-          icon: <Icon path={mdiClose} size={1} />,
-          autoClose: true,
-          loading: false,
-        })
-      })
-      .finally(() => {
-        setDisabled(false)
-        setDropzoneOpened(false)
-      })
+    } finally {
+      setDisabled(false)
+      setDropzoneOpened(false)
+    }
   }
 
-  const onChangeProfile = () => {
-    api.account
-      .accountUpdate(profile)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('account.notification.profile.profile_updated'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutate({ ...user })
+  const onChangeProfile = async () => {
+    try {
+      setDisabled(true)
+      await api.account.accountUpdate(profile)
+      showNotification({
+        color: 'teal',
+        message: t('account.notification.profile.profile_updated'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((e) => showErrorNotification(e, t))
+      mutate({ ...user })
+    } catch (e) {
+      showErrorMsg(e, t)
+    }
   }
 
-  const onChangeEmail = () => {
+  const onChangeEmail = async () => {
     if (!email) return
 
-    api.account
-      .accountChangeEmail({
-        newMail: email,
-      })
-      .then((res) => {
-        if (res.data.data) {
-          showNotification({
-            color: 'teal',
-            title: t('common.email.sent.title'),
-            message: t('common.email.sent.message'),
-            icon: <Icon path={mdiCheck} size={1} />,
-          })
-        } else {
-          mutate({ ...user, email: email })
-        }
-        setMailEditOpened(false)
-      })
-      .catch((e) => showErrorNotification(e, t))
+    try {
+      const res = await api.account.accountChangeEmail({ newMail: email })
+      if (res.data.data) {
+        showNotification({
+          color: 'teal',
+          title: t('common.email.sent.title'),
+          message: t('common.email.sent.message'),
+          icon: <Icon path={mdiCheck} size={1} />,
+        })
+      } else {
+        mutate({ ...user, email: email })
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   const context = (
@@ -166,13 +162,7 @@ const Profile: FC = () => {
             onChange={(event) => setProfile({ ...profile, userName: event.target.value })}
           />
           <Center>
-            <Avatar
-              alt="avatar"
-              radius={40}
-              size={80}
-              src={user?.avatar}
-              onClick={() => setDropzoneOpened(true)}
-            >
+            <Avatar alt="avatar" radius={40} size={80} src={user?.avatar} onClick={() => setDropzoneOpened(true)}>
               {user?.userName?.slice(0, 1) ?? 'U'}
             </Avatar>
           </Center>
@@ -224,22 +214,12 @@ const Profile: FC = () => {
         <Box m="auto" w="100%">
           <Grid grow>
             <Grid.Col span={4}>
-              <Button
-                fullWidth
-                variant="outline"
-                disabled={disabled}
-                onClick={() => setMailEditOpened(true)}
-              >
+              <Button fullWidth variant="outline" disabled={disabled} onClick={() => setMailEditOpened(true)}>
                 {t('account.button.update_email')}
               </Button>
             </Grid.Col>
             <Grid.Col span={4}>
-              <Button
-                fullWidth
-                variant="outline"
-                disabled={disabled}
-                onClick={() => setPwdChangeOpened(true)}
-              >
+              <Button fullWidth variant="outline" disabled={disabled} onClick={() => setPwdChangeOpened(true)}>
                 {t('account.button.change_password')}
               </Button>
             </Grid.Col>
@@ -274,11 +254,7 @@ const Profile: FC = () => {
         title={t('account.button.change_password')}
       />
 
-      <Modal
-        opened={mailEditOpened}
-        onClose={() => setMailEditOpened(false)}
-        title={t('account.button.update_email')}
-      >
+      <Modal opened={mailEditOpened} onClose={() => setMailEditOpened(false)} title={t('account.button.update_email')}>
         <Stack>
           <Text>
             <Trans i18nKey="account.content.profile.update_email_note"></Trans>
@@ -309,11 +285,7 @@ const Profile: FC = () => {
         </Stack>
       </Modal>
 
-      <Modal
-        opened={dropzoneOpened}
-        onClose={() => setDropzoneOpened(false)}
-        withCloseButton={false}
-      >
+      <Modal opened={dropzoneOpened} onClose={() => setDropzoneOpened(false)} withCloseButton={false}>
         <Dropzone
           onDrop={(files) => setAvatarFile(files[0])}
           onReject={() => {
@@ -330,7 +302,7 @@ const Profile: FC = () => {
           maxSize={3 * 1024 * 1024}
           accept={IMAGE_MIME_TYPES}
         >
-          <Group justify="center" gap="xl" mih={240} style={{ pointerEvents: 'none' }}>
+          <Group justify="center" gap="xl" mih={240} className={misc.noPointerEvents}>
             {avatarFile ? (
               <Image fit="contain" src={URL.createObjectURL(avatarFile)} alt="avatar" />
             ) : (

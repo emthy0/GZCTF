@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import {
   Group,
   Stack,
@@ -10,7 +9,9 @@ import {
   SelectProps,
   ComboboxItem,
   MantineColorsTuple,
+  OverlayProps,
 } from '@mantine/core'
+import { showNotification } from '@mantine/notifications'
 import {
   mdiBomb,
   mdiBullhornOutline,
@@ -29,22 +30,17 @@ import {
   mdiHexagonSlice2,
   mdiHexagonSlice4,
   mdiHexagonSlice6,
+  mdiLanPending,
   mdiLightbulbOnOutline,
   mdiMatrix,
   mdiPlus,
   mdiRobotLoveOutline,
+  mdiSearchWeb,
   mdiWeb,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { useTranslation } from 'react-i18next'
-import {
-  ChallengeTag,
-  ChallengeType,
-  NoticeType,
-  ParticipationStatus,
-  SubmissionType,
-  TaskStatus,
-} from '@Api'
+import { ChallengeCategory, ChallengeType, NoticeType, ParticipationStatus, SubmissionType, TaskStatus } from '@Api'
 
 export const useChallengeTypeLabelMap = () => {
   const { t } = useTranslation()
@@ -101,152 +97,175 @@ export const ChallengeTypeItem: SelectProps['renderOption'] = ({ option }) => {
   )
 }
 
-export const useChallengeTagLabelMap = () => {
+export const ChallengeCategoryList = Object.values(ChallengeCategory)
+
+export const useChallengeCategoryLabelMap = () => {
   const { t } = useTranslation()
   const theme = useMantineTheme()
+  const { colorScheme } = useMantineColorScheme()
+  const revert = colorScheme === 'dark' ? 'light' : 'dark'
 
-  return new Map<ChallengeTag, ChallengeTagItemProps>([
+  return new Map<ChallengeCategory, ChallengeCategoryItemProps>([
     [
-      ChallengeTag.Misc,
+      ChallengeCategory.Misc,
       {
-        desrc: t('challenge.tag.misc'),
+        desrc: t('challenge.category.misc'),
         icon: mdiGamepadVariantOutline,
-        name: ChallengeTag.Misc,
+        name: ChallengeCategory.Misc,
         color: 'teal',
         colors: theme.colors['teal'],
       },
     ],
     [
-      ChallengeTag.Crypto,
+      ChallengeCategory.Pwn,
       {
-        desrc: t('challenge.tag.crypto'),
-        icon: mdiMatrix,
-        name: ChallengeTag.Crypto,
-        color: 'indigo',
-        colors: theme.colors['indigo'],
-      },
-    ],
-    [
-      ChallengeTag.Pwn,
-      {
-        desrc: t('challenge.tag.pwn'),
+        desrc: t('challenge.category.pwn'),
         icon: mdiBomb,
-        name: ChallengeTag.Pwn,
+        name: ChallengeCategory.Pwn,
         color: 'red',
         colors: theme.colors['red'],
       },
     ],
     [
-      ChallengeTag.Web,
+      ChallengeCategory.Web,
       {
-        desrc: t('challenge.tag.web'),
+        desrc: t('challenge.category.web'),
         icon: mdiWeb,
-        name: ChallengeTag.Web,
+        name: ChallengeCategory.Web,
         color: 'blue',
         colors: theme.colors['blue'],
       },
     ],
     [
-      ChallengeTag.Reverse,
+      ChallengeCategory.Reverse,
       {
-        desrc: t('challenge.tag.reverse'),
+        desrc: t('challenge.category.reverse'),
         icon: mdiChevronTripleLeft,
-        name: ChallengeTag.Reverse,
+        name: ChallengeCategory.Reverse,
         color: 'yellow',
         colors: theme.colors['yellow'],
       },
     ],
     [
-      ChallengeTag.Blockchain,
+      ChallengeCategory.Crypto,
       {
-        desrc: t('challenge.tag.blockchain'),
-        icon: mdiEthereum,
-        name: ChallengeTag.Blockchain,
-        color: 'lime',
-        colors: theme.colors['lime'],
-      },
-    ],
-    [
-      ChallengeTag.Forensics,
-      {
-        desrc: t('challenge.tag.forensics'),
-        icon: mdiFingerprint,
-        name: ChallengeTag.Forensics,
-        color: 'cyan',
-        colors: theme.colors['cyan'],
-      },
-    ],
-    [
-      ChallengeTag.Hardware,
-      {
-        desrc: t('challenge.tag.hardware'),
-        icon: mdiChip,
-        name: ChallengeTag.Hardware,
+        desrc: t('challenge.category.crypto'),
+        icon: mdiMatrix,
+        name: ChallengeCategory.Crypto,
         color: 'violet',
         colors: theme.colors['violet'],
       },
     ],
     [
-      ChallengeTag.Mobile,
+      ChallengeCategory.Blockchain,
       {
-        desrc: t('challenge.tag.mobile'),
+        desrc: t('challenge.category.blockchain'),
+        icon: mdiEthereum,
+        name: ChallengeCategory.Blockchain,
+        color: 'green',
+        colors: theme.colors['green'],
+      },
+    ],
+    [
+      ChallengeCategory.Forensics,
+      {
+        desrc: t('challenge.category.forensics'),
+        icon: mdiFingerprint,
+        name: ChallengeCategory.Forensics,
+        color: 'indigo',
+        colors: theme.colors['indigo'],
+      },
+    ],
+    [
+      ChallengeCategory.Hardware,
+      {
+        desrc: t('challenge.category.hardware'),
+        icon: mdiChip,
+        name: ChallengeCategory.Hardware,
+        color: revert,
+        colors: theme.colors[revert],
+      },
+    ],
+    [
+      ChallengeCategory.Mobile,
+      {
+        desrc: t('challenge.category.mobile'),
         icon: mdiCellphoneCog,
-        name: ChallengeTag.Mobile,
+        name: ChallengeCategory.Mobile,
         color: 'pink',
         colors: theme.colors['pink'],
       },
     ],
     [
-      ChallengeTag.PPC,
+      ChallengeCategory.PPC,
       {
-        desrc: t('challenge.tag.ppc'),
+        desrc: t('challenge.category.ppc'),
         icon: mdiConsole,
-        name: ChallengeTag.PPC,
+        name: ChallengeCategory.PPC,
+        color: 'cyan',
+        colors: theme.colors['cyan'],
+      },
+    ],
+    [
+      ChallengeCategory.AI,
+      {
+        desrc: t('challenge.category.ai'),
+        icon: mdiRobotLoveOutline,
+        name: ChallengeCategory.AI,
+        color: 'lime',
+        colors: theme.colors['lime'],
+      },
+    ],
+    [
+      ChallengeCategory.OSINT,
+      {
+        desrc: t('challenge.category.osint'),
+        icon: mdiSearchWeb,
+        name: ChallengeCategory.OSINT,
         color: 'orange',
         colors: theme.colors['orange'],
       },
     ],
     [
-      ChallengeTag.AI,
+      ChallengeCategory.Pentest,
       {
-        desrc: t('challenge.tag.ai'),
-        icon: mdiRobotLoveOutline,
-        name: ChallengeTag.AI,
-        color: 'green',
-        colors: theme.colors['green'],
+        desrc: t('challenge.category.pentest'),
+        icon: mdiLanPending,
+        name: ChallengeCategory.Pentest,
+        color: 'grape',
+        colors: theme.colors['grape'],
       },
     ],
   ])
 }
 
-export interface ChallengeTagItemProps {
-  name: ChallengeTag
+export interface ChallengeCategoryItemProps {
+  name: ChallengeCategory
   desrc: string
   icon: string
   color: string
   colors: MantineColorsTuple
 }
 
-type SelectChallengeTagItemProps = ChallengeTagItemProps & ComboboxItem
+type SelectChallengeCategoryItemProps = ChallengeCategoryItemProps & ComboboxItem
 
-export const ChallengeTagItem: SelectProps['renderOption'] = ({ option }) => {
-  const { colors, icon, name } = option as SelectChallengeTagItemProps
+export const ChallengeCategoryItem: SelectProps['renderOption'] = ({ option }) => {
+  const { colors, icon, name, desrc } = option as SelectChallengeCategoryItemProps
 
   return (
     <Group wrap="nowrap">
-      <Icon color={colors[4]} path={icon} size={1.2} />
-      <Text size="sm" fw="bold">
-        {name}
-      </Text>
+      <Icon color={colors[5]} path={icon} size={1.2} />
+      <Stack gap={0}>
+        <Text size="sm" fw="bold">
+          {name}
+        </Text>
+        <Text size="xs">{desrc}</Text>
+      </Stack>
     </Group>
   )
 }
 
-export const BloodsTypes = [
-  SubmissionType.FirstBlood,
-  SubmissionType.SecondBlood,
-  SubmissionType.ThirdBlood,
-]
+export const BloodsTypes = [SubmissionType.FirstBlood, SubmissionType.SecondBlood, SubmissionType.ThirdBlood]
 
 export const SubmissionTypeColorMap = () => {
   const theme = useMantineTheme()
@@ -258,15 +277,11 @@ export const SubmissionTypeColorMap = () => {
     [SubmissionType.FirstBlood, theme.colors.yellow[5]],
     [
       SubmissionType.SecondBlood,
-      colorScheme === 'dark'
-        ? lighten(theme.colors.gray[2], 0.3)
-        : darken(theme.colors.gray[1], 0.2),
+      colorScheme === 'dark' ? lighten(theme.colors.gray[2], 0.3) : darken(theme.colors.gray[1], 0.2),
     ],
     [
       SubmissionType.ThirdBlood,
-      colorScheme === 'dark'
-        ? darken(theme.colors.orange[7], 0.25)
-        : lighten(theme.colors.orange[7], 0.2),
+      colorScheme === 'dark' ? darken(theme.colors.orange[7], 0.25) : lighten(theme.colors.orange[7], 0.2),
     ],
   ])
 }
@@ -276,10 +291,7 @@ export const SubmissionTypeIconMap = (size: number) => {
   return {
     iconMap: new Map<SubmissionType, PartialIconProps | undefined>([
       [SubmissionType.Unaccepted, undefined],
-      [
-        SubmissionType.Normal,
-        { path: mdiFlag, size: size, color: colorMap.get(SubmissionType.Normal) },
-      ],
+      [SubmissionType.Normal, { path: mdiFlag, size: size, color: colorMap.get(SubmissionType.Normal) }],
       [
         SubmissionType.FirstBlood,
         { path: mdiHexagonSlice6, size: size, color: colorMap.get(SubmissionType.FirstBlood) },
@@ -304,14 +316,8 @@ export const NoticTypeIconMap = (size: number) => {
   const colorIdx = colorScheme === 'dark' ? 4 : 7
 
   return new Map([
-    [
-      NoticeType.Normal,
-      { path: mdiBullhornOutline, size: size, color: theme.colors[theme.primaryColor][colorIdx] },
-    ],
-    [
-      NoticeType.NewHint,
-      { path: mdiLightbulbOnOutline, size: size, color: theme.colors.yellow[colorIdx] },
-    ],
+    [NoticeType.Normal, { path: mdiBullhornOutline, size: size, color: theme.colors[theme.primaryColor][colorIdx] }],
+    [NoticeType.NewHint, { path: mdiLightbulbOnOutline, size: size, color: theme.colors.yellow[colorIdx] }],
     [NoticeType.NewChallenge, { path: mdiPlus, size: size, color: theme.colors.green[colorIdx] }],
     [NoticeType.FirstBlood, iconMap.get(SubmissionType.FirstBlood)],
     [NoticeType.SecondBlood, iconMap.get(SubmissionType.SecondBlood)],
@@ -421,12 +427,12 @@ export const useBonusLabels = (bonus: BloodBonus) => {
 
   return new Map(
     BloodsTypes.map((type) => {
-      const bonus_value = bonus.getBonusNum(type)
+      const bonusValue = bonus.getBonusNum(type)
       return [
         type,
         {
           name: BonusLabelNameMap.get(type),
-          descr: `+${bonus_value / (BloodBonus.base / 100)}%`,
+          descr: `+${bonusValue / (BloodBonus.base / 100)}%`,
         } as BonusLabel,
       ]
     })
@@ -444,9 +450,9 @@ export const TaskStatusColorMap = new Map<TaskStatus | null, string>([
   [null, 'gray'],
 ])
 
-export const getProxyUrl = (guid: string, test: boolean = false) => {
+export const getProxyUrl = (guid: string, isPreview: boolean = false) => {
   const protocol = window.location.protocol.replace('http', 'ws')
-  const api = test ? 'api/proxy/noinst' : 'api/proxy'
+  const api = isPreview ? 'api/proxy/noinst' : 'api/proxy'
   return `${protocol}//${window.location.host}/${api}/${guid}`
 }
 
@@ -462,14 +468,22 @@ export const HunamizeSize = (size: number) => {
   }
 }
 
-export const IMAGE_MIME_TYPES = [
-  'image/png',
-  'image/gif',
-  'image/jpeg',
-  'image/webp',
-  'image/avif',
-  'image/heic',
-]
+export const DEFAULT_LOADING_OVERLAY: OverlayProps = {
+  backgroundOpacity: 0.5,
+  blur: 8,
+}
+
+export const IMAGE_MIME_TYPES = ['image/png', 'image/gif', 'image/jpeg', 'image/webp', 'image/avif', 'image/heic']
+
+/**
+ * Client Error class to encapsulate client-side errors
+ */
+export class ClientError {
+  constructor(
+    public title: string,
+    public message: string
+  ) {}
+}
 
 /** 系统错误信息 */
 export const enum ErrorCodes {
@@ -482,4 +496,43 @@ export const enum ErrorCodes {
    * 比赛已结束
    */
   GameEnded = 10002,
+}
+
+const showErrorNotification = (title: string, message: string) => {
+  showNotification({
+    color: 'red',
+    title,
+    message,
+    icon: <Icon path={mdiClose} size={1} />,
+  })
+}
+
+export const tryGetErrorMsg = (err: any, t: (key: string) => string): string => {
+  const tryGetErrorString = (err: any): string | null => {
+    return typeof err === 'string' ? err : null
+  }
+
+  return (
+    tryGetErrorString(err) ||
+    tryGetErrorString(err.title) ||
+    tryGetErrorString(err.response?.data?.title) ||
+    tryGetErrorString(err.message) ||
+    tryGetErrorString(err.cause) ||
+    t('common.error.unknown')
+  )
+}
+
+export const tryGetClientError = (err: any, t: (key: string) => string): ClientError => {
+  return err instanceof ClientError ? err : new ClientError(t('common.error.encountered'), tryGetErrorMsg(err, t))
+}
+
+export const showErrorMsg = (err: any, t: (key: string) => string) => {
+  if (err?.response?.status === 429) {
+    showErrorNotification(t('common.error.try_later'), tryGetErrorMsg(err, t))
+    return
+  }
+
+  console.warn(err)
+  const clientError = tryGetClientError(err, t)
+  showErrorNotification(clientError.title, clientError.message)
 }

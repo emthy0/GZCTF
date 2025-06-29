@@ -11,9 +11,7 @@ import cx from 'clsx'
 import { FC, forwardRef } from 'react'
 import classes from '@Styles/ScrollSelect.module.css'
 
-export interface SelectableItemProps
-  extends UnstyledButtonProps,
-    ElementProps<'button', keyof UnstyledButtonProps> {
+export interface SelectableItemProps extends UnstyledButtonProps, ElementProps<'button', keyof UnstyledButtonProps> {
   onClick: () => void
   active?: boolean
   disabled?: boolean
@@ -49,7 +47,7 @@ export const SelectableItem = forwardRef<HTMLButtonElement, SelectableItemProps>
   )
 })
 
-const ScrollSelect: FC<ScrollSelectProps> = (props) => {
+export const ScrollSelect: FC<ScrollSelectProps> = (props) => {
   const {
     itemComponent: ItemComponent,
     itemComponentProps,
@@ -80,5 +78,3 @@ const ScrollSelect: FC<ScrollSelectProps> = (props) => {
     </ScrollArea>
   )
 }
-
-export default ScrollSelect

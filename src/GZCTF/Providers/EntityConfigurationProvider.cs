@@ -32,6 +32,7 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
         configs.UnionWith(ConfigService.GetConfigs(new AccountPolicy()));
         configs.UnionWith(ConfigService.GetConfigs(new GlobalConfig()));
         configs.UnionWith(ConfigService.GetConfigs(new ContainerPolicy()));
+        configs.UnionWith(ConfigService.GetConfigs(new ManagedConfig()));
 
         return configs;
     }
@@ -43,7 +44,7 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
             try
             {
                 await Task.Delay(source.PollingInterval, token);
-                Dictionary<string, string?> actualData = await GetDataAsync(token);
+                var actualData = await GetDataAsync(token);
 
                 var computedHash = ConfigHash(actualData);
                 if (!computedHash.SequenceEqual(_lastHash))
@@ -56,7 +57,7 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
             }
             catch (Exception ex)
             {
-                Log.Logger?.Error(ex, Program.StaticLocalizer[nameof(Resources.Program.Config_ReloadFailed)]);
+                Log.Logger?.Error(ex, StaticLocalizer[nameof(Resources.Program.Config_ReloadFailed)]);
             }
         }
     }
@@ -71,7 +72,7 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
 
     async Task<Dictionary<string, string?>> GetDataAsync(CancellationToken token = default)
     {
-        AppDbContext context = CreateAppDbContext();
+        var context = CreateAppDbContext();
         return await context.Configs.ToDictionaryAsync(c => c.ConfigKey, c => c.Value,
             StringComparer.OrdinalIgnoreCase, token);
     }
@@ -81,30 +82,32 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
             string.Join(";", configs.Select(c => $"{c.Key}={c.Value}"))
         ));
 
-    public override void Load()
+    public override void Load() => LoadAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+
+    private async Task LoadAsync()
     {
         if (_databaseWatcher is not null)
         {
-            Data = GetDataAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            Data = await GetDataAsync();
             _lastHash = ConfigHash(Data);
             return;
         }
 
-        AppDbContext context = CreateAppDbContext();
+        var context = CreateAppDbContext();
 
-        if (!context.Database.IsInMemory() && context.Database.GetMigrations().Any())
-            context.Database.Migrate();
+        if (context.Database.GetMigrations().Any())
+            await context.Database.MigrateAsync();
 
-        context.Database.EnsureCreated();
+        await context.Database.EnsureCreatedAsync();
 
         if (!context.Configs.Any())
         {
-            Log.Logger.Debug(Program.StaticLocalizer[nameof(Resources.Program.Config_InitializingDatabase)]);
+            Log.Logger.Debug(StaticLocalizer[nameof(Resources.Program.Config_InitializingDatabase)]);
 
-            HashSet<Config> configs = DefaultConfigs();
+            var configs = DefaultConfigs();
 
             context.Configs.AddRange(configs);
-            context.SaveChanges();
+            await context.SaveChangesAsync();
 
             Data = configs.ToDictionary(c => c.ConfigKey, c => c.Value, StringComparer.OrdinalIgnoreCase);
         }
@@ -115,7 +118,8 @@ public class EntityConfigurationProvider(EntityConfigurationSource source) : Con
 
         _lastHash = ConfigHash(Data);
 
-        CancellationToken cancellationToken = _cancellationTokenSource.Token;
-        _databaseWatcher = Task.Run(() => WatchDatabase(cancellationToken), cancellationToken);
+        var cancellationToken = _cancellationTokenSource.Token;
+        _databaseWatcher = Task.Factory.StartNew(() => WatchDatabase(cancellationToken),
+            cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
 }

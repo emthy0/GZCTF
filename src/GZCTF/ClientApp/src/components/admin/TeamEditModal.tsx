@@ -18,7 +18,7 @@ import { mdiCheck, mdiLockOutline, mdiStar } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { showErrorMsg } from '@Utils/Shared'
 import api, { AdminTeamModel, TeamInfoModel } from '@Api'
 
 interface TeamEditModalProps extends ModalProps {
@@ -26,7 +26,7 @@ interface TeamEditModalProps extends ModalProps {
   mutateTeam: (team: TeamInfoModel) => void
 }
 
-const TeamEditModal: FC<TeamEditModalProps> = (props) => {
+export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
   const { team, mutateTeam, ...modalProps } = props
 
   const theme = useMantineTheme()
@@ -41,28 +41,28 @@ const TeamEditModal: FC<TeamEditModalProps> = (props) => {
     setActiveTeam(team)
   }, [team])
 
-  const onChangeTeamInfo = () => {
+  const onChangeTeamInfo = async () => {
     setDisabled(true)
-    api.admin
-      .adminUpdateTeam(activeTeam.id!, teamInfo)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          message: t('team.notification.updated'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutateTeam({
-          ...activeTeam,
-          name: teamInfo.name,
-          bio: teamInfo.bio,
-          locked: teamInfo.locked ?? activeTeam.locked,
-        })
-        modalProps.onClose()
+
+    try {
+      await api.admin.adminUpdateTeam(activeTeam.id!, teamInfo)
+      showNotification({
+        color: 'teal',
+        message: t('team.notification.updated'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setDisabled(false)
+      mutateTeam({
+        ...activeTeam,
+        name: teamInfo.name,
+        bio: teamInfo.bio,
+        locked: teamInfo.locked ?? activeTeam.locked,
       })
+      modalProps.onClose()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (
@@ -118,7 +118,7 @@ const TeamEditModal: FC<TeamEditModalProps> = (props) => {
                   </Avatar>
                   <Stack gap={0}>
                     <Text fw={500}>{user.userName}</Text>
-                    <Text size="xs" c="dimmed">{`#${user.id?.substring(0, 8)}`}</Text>
+                    <Text size="xs" c="dimmed">{`#${user.id?.substring(28)}`}</Text>
                   </Stack>
                 </Group>
                 <Group justify="right">
@@ -138,5 +138,3 @@ const TeamEditModal: FC<TeamEditModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default TeamEditModal

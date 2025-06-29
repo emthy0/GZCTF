@@ -4,9 +4,9 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router-dom'
-import AccountView from '@Components/AccountView'
-import { usePageTitle } from '@Utils/usePageTitle'
+import { useLocation, useNavigate } from 'react-router'
+import { AccountView } from '@Components/AccountView'
+import { usePageTitle } from '@Hooks/usePageTitle'
 import api from '@Api'
 
 const Verify: FC = () => {
@@ -35,28 +35,26 @@ const Verify: FC = () => {
     }
 
     setDisabled(true)
-    api.account
-      .accountVerify({ token, email })
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          title: t('account.notification.verify.success'),
-          message: window.atob(email),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        navigate('/account/login')
+
+    try {
+      await api.account.accountVerify({ token, email })
+      showNotification({
+        color: 'teal',
+        title: t('account.notification.verify.success'),
+        message: window.atob(email),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch(() => {
-        showNotification({
-          color: 'red',
-          title: t('account.notification.verify.failed'),
-          message: t('common.error.param_error'),
-          icon: <Icon path={mdiClose} size={1} />,
-        })
+      navigate('/account/login')
+    } catch {
+      showNotification({
+        color: 'red',
+        title: t('account.notification.verify.failed'),
+        message: t('common.error.param_error'),
+        icon: <Icon path={mdiClose} size={1} />,
       })
-      .finally(() => {
-        setDisabled(false)
-      })
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (

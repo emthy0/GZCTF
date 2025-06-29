@@ -26,14 +26,16 @@ import {
   mdiPencilOutline,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
+import cx from 'clsx'
 import React, { FC, useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ActionIconWithConfirm } from '@Components/ActionIconWithConfirm'
-import AdminPage from '@Components/admin/AdminPage'
-import TeamEditModal from '@Components/admin/TeamEditModal'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useArrayResponse } from '@Utils/useArrayResponse'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { TeamEditModal } from '@Components/admin/TeamEditModal'
+import { showErrorMsg } from '@Utils/Shared'
+import { useArrayResponse } from '@Hooks/useArrayResponse'
 import api, { TeamInfoModel, TeamWithDetailedUserInfo } from '@Api'
+import misc from '@Styles/Misc.module.css'
 import tableClasses from '@Styles/Table.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
 
@@ -42,12 +44,7 @@ const ITEM_COUNT_PER_PAGE = 30
 const Teams: FC = () => {
   const [page, setPage] = useState(1)
   const [update, setUpdate] = useState(new Date())
-  const {
-    data: teams,
-    total,
-    setData: setTeams,
-    updateData: updateTeams,
-  } = useArrayResponse<TeamInfoModel>()
+  const { data: teams, total, setData: setTeams, updateData: updateTeams } = useArrayResponse<TeamInfoModel>()
   const [hint, setHint] = useInputState('')
   const [searching, setSearching] = useState(false)
   const [disabled, setDisabled] = useState(false)
@@ -63,45 +60,45 @@ const Teams: FC = () => {
   }, [page, viewport])
 
   useEffect(() => {
-    api.admin
-      .adminTeams({
-        count: ITEM_COUNT_PER_PAGE,
-        skip: (page - 1) * ITEM_COUNT_PER_PAGE,
-      })
-      .then((res) => {
-        setTeams(res.data)
-        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
-      })
-  }, [page, update])
-
-  const onSearch = () => {
-    if (!hint) {
-      api.admin
-        .adminTeams({
+    const fetchData = async () => {
+      try {
+        const res = await api.admin.adminTeams({
           count: ITEM_COUNT_PER_PAGE,
           skip: (page - 1) * ITEM_COUNT_PER_PAGE,
         })
-        .then((res) => {
-          setTeams(res.data)
-          setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
-        })
-      return
+
+        setTeams(res.data)
+        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
+      } catch (e) {
+        showErrorMsg(e, t)
+      }
     }
 
-    setSearching(true)
+    fetchData()
+  }, [page, update])
 
-    api.admin
-      .adminSearchTeams({
-        hint,
-      })
-      .then((res) => {
+  const onSearch = async () => {
+    try {
+      if (!hint) {
+        const res = await api.admin.adminTeams({
+          count: ITEM_COUNT_PER_PAGE,
+          skip: (page - 1) * ITEM_COUNT_PER_PAGE,
+        })
+
+        setTeams(res.data)
+        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
+      } else {
+        setSearching(true)
+
+        const res = await api.admin.adminSearchTeams({ hint })
         setTeams(res.data)
         setCurrent(res.data.length)
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setSearching(false)
-      })
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setSearching(false)
+    }
   }
 
   const onDelete = async (team: TeamInfoModel) => {
@@ -118,11 +115,11 @@ const Teams: FC = () => {
         color: 'teal',
         icon: <Icon path={mdiCheck} size={1} />,
       })
-      teams && updateTeams(teams.filter((x) => x.id !== team.id))
+      if (teams) updateTeams(teams.filter((x) => x.id !== team.id))
       setCurrent(current - 1)
       setUpdate(new Date())
     } catch (e: any) {
-      showErrorNotification(e, t)
+      showErrorMsg(e, t)
     } finally {
       setDisabled(false)
     }
@@ -144,13 +141,13 @@ const Teams: FC = () => {
       })
 
       updateTeams(
-        [{ ...team, locked: !team.locked }, ...(teams?.filter((n) => n.id !== team.id) ?? [])].sort(
-          (a, b) => (a.id! < b.id! ? -1 : 1)
+        [{ ...team, locked: !team.locked }, ...(teams?.filter((n) => n.id !== team.id) ?? [])].sort((a, b) =>
+          a.id! < b.id! ? -1 : 1
         )
       )
       setUpdate(new Date())
     } catch (e: any) {
-      showErrorNotification(e, t)
+      showErrorMsg(e, t)
     } finally {
       setDisabled(false)
     }
@@ -168,7 +165,7 @@ const Teams: FC = () => {
             value={hint}
             onChange={setHint}
             onKeyDown={(e) => {
-              !searching && e.key === 'Enter' && onSearch()
+              if (!searching && e.key === 'Enter') onSearch()
             }}
             rightSection={<Icon path={mdiAccountGroupOutline} size={1} />}
           />
@@ -190,11 +187,7 @@ const Teams: FC = () => {
             <Text fw="bold" size="sm">
               {page}
             </Text>
-            <ActionIcon
-              size="lg"
-              disabled={page * ITEM_COUNT_PER_PAGE >= total}
-              onClick={() => setPage(page + 1)}
-            >
+            <ActionIcon size="lg" disabled={page * ITEM_COUNT_PER_PAGE >= total} onClick={() => setPage(page + 1)}>
               <Icon path={mdiArrowRightBold} size={1} />
             </ActionIcon>
           </Group>
@@ -202,16 +195,11 @@ const Teams: FC = () => {
       }
     >
       <Paper shadow="md" p="md" w="100%">
-        <ScrollArea
-          viewportRef={viewport}
-          offsetScrollbars
-          scrollbarSize={4}
-          h="calc(100vh - 190px)"
-        >
+        <ScrollArea viewportRef={viewport} offsetScrollbars scrollbarSize={4} h="calc(100vh - 190px)">
           <Table className={tableClasses.table}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th style={{ width: '35vw', minWidth: '400px' }}>
+                <Table.Th w="35vw" miw="400px">
                   {t('common.label.team')}
                 </Table.Th>
                 <Table.Th>{t('admin.label.teams.members')}</Table.Th>
@@ -222,10 +210,7 @@ const Teams: FC = () => {
             <Table.Tbody>
               {teams &&
                 teams.map((team) => {
-                  const members = team.members && [
-                    team.members.filter((m) => m.captain)[0]!,
-                    ...(team.members.filter((m) => !m.captain) ?? []),
-                  ]
+                  const members = team.members?.sort((a, b) => (a.captain ? (b.captain ? 0 : -1) : 1))
 
                   return (
                     <Table.Tr key={team.id}>
@@ -239,44 +224,23 @@ const Teams: FC = () => {
                               variant="unstyled"
                               value={team.name ?? 'team'}
                               readOnly
-                              styles={{
-                                wrapper: {
-                                  flexGrow: 1,
-                                  width: 'calc(100% - 3rem)',
-                                },
-                                input: {
-                                  userSelect: 'none',
-                                  fontWeight: 'bold',
-                                  width: '100%',
-                                },
+                              classNames={{
+                                wrapper: misc.teamNameWrapper,
+                                input: cx(misc.w100, misc.fwBold, misc.noUserSelect),
                               }}
                             />
                           </Group>
                           <Badge size="md" color={team.locked ? 'yellow' : 'gray'}>
-                            {team.locked
-                              ? t('admin.content.teams.locked')
-                              : t('admin.content.teams.unlocked')}
+                            {team.locked ? t('admin.content.teams.locked') : t('admin.content.teams.unlocked')}
                           </Badge>
                         </Group>
                       </Table.Td>
                       <Table.Td>
                         <Tooltip.Group openDelay={300} closeDelay={100}>
-                          <Avatar.Group
-                            spacing="md"
-                            styles={{
-                              child: {
-                                border: 'none',
-                              },
-                            }}
-                          >
+                          <Avatar.Group spacing="md">
                             {members &&
                               members.slice(0, 8).map((m) => (
-                                <Tooltip
-                                  key={m.id}
-                                  label={m.userName}
-                                  withArrow
-                                  classNames={tooltipClasses}
-                                >
+                                <Tooltip key={m.id} label={m.userName} withArrow classNames={tooltipClasses}>
                                   <Avatar alt="avatar" radius="xl" src={m.avatar}>
                                     {m.userName?.slice(0, 1) ?? 'U'}
                                   </Avatar>
@@ -324,9 +288,7 @@ const Teams: FC = () => {
                             color={team.locked ? 'gray' : 'yellow'}
                             message={t('admin.content.teams.lock', {
                               name: team.name,
-                              action: team.locked
-                                ? t('admin.button.teams.do_unlock')
-                                : t('admin.button.teams.do_lock'),
+                              action: team.locked ? t('admin.button.teams.do_unlock') : t('admin.button.teams.do_lock'),
                             })}
                             disabled={disabled}
                             onClick={() => onToggleLock(team)}
@@ -357,9 +319,7 @@ const Teams: FC = () => {
           onClose={() => setIsEditModalOpen(false)}
           mutateTeam={(team: TeamWithDetailedUserInfo) => {
             updateTeams(
-              [team, ...(teams?.filter((n) => n.id !== team.id) ?? [])].sort((a, b) =>
-                a.id! < b.id! ? -1 : 1
-              )
+              [team, ...(teams?.filter((n) => n.id !== team.id) ?? [])].sort((a, b) => (a.id! < b.id! ? -1 : 1))
             )
           }}
         />

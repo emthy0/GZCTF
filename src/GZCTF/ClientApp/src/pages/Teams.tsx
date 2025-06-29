@@ -17,16 +17,16 @@ import { mdiAccountMultiplePlus, mdiCheck, mdiClose, mdiHumanGreetingVariant } f
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import LogoHeader from '@Components/LogoHeader'
-import TeamCard from '@Components/TeamCard'
-import TeamCreateModal from '@Components/TeamCreateModal'
-import TeamEditModal from '@Components/TeamEditModal'
-import WithNavBar from '@Components/WithNavbar'
-import WithRole from '@Components/WithRole'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { LogoHeader } from '@Components/LogoHeader'
+import { TeamCard } from '@Components/TeamCard'
+import { TeamCreateModal } from '@Components/TeamCreateModal'
+import { TeamEditModal } from '@Components/TeamEditModal'
+import { WithNavBar } from '@Components/WithNavbar'
+import { WithRole } from '@Components/WithRole'
+import { showErrorMsg } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
-import { usePageTitle } from '@Utils/usePageTitle'
-import { useTeams, useUser } from '@Utils/useUser'
+import { usePageTitle } from '@Hooks/usePageTitle'
+import { useTeams, useUser } from '@Hooks/useUser'
 import api, { Role, TeamInfoModel } from '@Api'
 
 const Teams: FC = () => {
@@ -39,15 +39,18 @@ const Teams: FC = () => {
   const [joinTeamCode, setJoinTeamCode] = useState('')
 
   const [createOpened, setCreateOpened] = useState(false)
-
   const [editOpened, setEditOpened] = useState(false)
+
   const [editTeam, setEditTeam] = useState<TeamInfoModel | null>(null)
 
-  const ownTeam = teams?.some((t) => t.members?.some((m) => m?.captain && m.id === user?.userId))
+  const teamsOwned = teams?.filter((t) => t.members?.some((m) => m?.captain && m.id === user?.userId))
+  const disallowCreate = (teamsOwned?.length ?? 0) >= 3
 
   const isMobile = useIsMobile()
 
   const { t } = useTranslation()
+
+  usePageTitle(t('team.title.index'))
 
   const onEditTeam = (team: TeamInfoModel) => {
     setEditTeam(team)
@@ -56,7 +59,7 @@ const Teams: FC = () => {
 
   const codePartten = /:\d+:[0-9a-f]{32}$/
 
-  const onJoinTeam = () => {
+  const onJoinTeam = async () => {
     if (!codePartten.test(joinTeamCode)) {
       showNotification({
         color: 'red',
@@ -67,27 +70,24 @@ const Teams: FC = () => {
       return
     }
 
-    api.team
-      .teamAccept(joinTeamCode)
-      .then(() => {
-        showNotification({
-          color: 'teal',
-          title: t('team.notification.join.success'),
-          message: t('team.notification.updated'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        mutateTeams()
+    try {
+      await api.team.teamAccept(joinTeamCode)
+      showNotification({
+        color: 'teal',
+        title: t('team.notification.join.success'),
+        message: t('team.notification.updated'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setJoinTeamCode('')
-        setJoinOpened(false)
-      })
+      mutateTeams()
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setJoinTeamCode('')
+      setJoinOpened(false)
+    }
   }
 
   const { colorScheme } = useMantineColorScheme()
-
-  usePageTitle(t('team.title.index'))
 
   const btns = (
     <>
@@ -160,11 +160,7 @@ const Teams: FC = () => {
           )}
         </Stack>
 
-        <Modal
-          opened={joinOpened}
-          title={t('team.button.join')}
-          onClose={() => setJoinOpened(false)}
-        >
+        <Modal opened={joinOpened} title={t('team.button.join')} onClose={() => setJoinOpened(false)}>
           <Stack>
             <Text size="sm">{t('team.content.join')}</Text>
             <TextInput
@@ -184,7 +180,7 @@ const Teams: FC = () => {
         <TeamCreateModal
           opened={createOpened}
           title={t('team.button.create')}
-          isOwnTeam={ownTeam ?? false}
+          disallowCreate={disallowCreate ?? false}
           onClose={() => setCreateOpened(false)}
           mutate={mutateTeams}
         />

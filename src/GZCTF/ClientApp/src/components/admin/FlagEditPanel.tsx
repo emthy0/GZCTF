@@ -18,7 +18,7 @@ const FlagCard: FC<FlagCardProps> = ({ flag, onDelete, unifiedAttachment }) => {
   const clipboard = useClipboard()
   const attachment = unifiedAttachment ?? flag.attachment
   const shortURL = attachment?.url?.split('/').slice(-2)[0].slice(0, 8)
-  const { classes } = useDisplayInputStyles({ fw: 'bold', ff: 'monospace' })
+  const { classes } = useDisplayInputStyles({ fw: 'bold', ff: 'monospace', cs: 'pointer' })
   const { t } = useTranslation()
 
   return (
@@ -40,7 +40,6 @@ const FlagCard: FC<FlagCardProps> = ({ flag, onDelete, unifiedAttachment }) => {
               })
             }}
             classNames={classes}
-            styles={{ input: { cursor: 'pointer' } }}
           />
           <Text c="dimmed" size="sm" ff="monospace">
             {attachment?.type} {shortURL}
@@ -54,28 +53,21 @@ const FlagCard: FC<FlagCardProps> = ({ flag, onDelete, unifiedAttachment }) => {
   )
 }
 
-interface FladEditPanelProps {
+interface FlagEditPanelProps {
   flags?: FlagInfoModel[]
   onDelete: (flag: FlagInfoModel) => void
   unifiedAttachment?: Attachment | null
 }
 
-const FladEditPanel: FC<FladEditPanelProps> = ({ flags, onDelete, unifiedAttachment }) => {
+export const FlagEditPanel: FC<FlagEditPanelProps> = ({ flags, onDelete, unifiedAttachment }) => {
   return (
     <Stack>
       <SimpleGrid spacing="sm" cols={{ base: 2, w18: 3, w24: 4, w30: 5, w36: 6, w42: 7, w48: 8 }}>
         {flags &&
           flags.map((flag, i) => (
-            <FlagCard
-              key={i}
-              flag={flag}
-              onDelete={() => onDelete(flag)}
-              unifiedAttachment={unifiedAttachment}
-            />
+            <FlagCard key={i} flag={flag} onDelete={() => onDelete(flag)} unifiedAttachment={unifiedAttachment} />
           ))}
       </SimpleGrid>
     </Stack>
   )
 }
-
-export default FladEditPanel

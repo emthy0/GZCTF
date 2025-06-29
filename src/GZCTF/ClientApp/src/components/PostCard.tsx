@@ -15,11 +15,11 @@ import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
-import Markdown from '@Components/MarkdownRenderer'
+import { Link } from 'react-router'
+import { Markdown } from '@Components/MarkdownRenderer'
 import { RequireRole } from '@Components/WithRole'
 import { useLanguage } from '@Utils/I18n'
-import { useUserRole } from '@Utils/useUser'
+import { useUserRole } from '@Hooks/useUser'
 import { PostInfoModel, Role } from '@Api'
 
 export interface PostCardProps {
@@ -27,8 +27,7 @@ export interface PostCardProps {
   onTogglePinned?: (post: PostInfoModel, setDisabled: (value: boolean) => void) => void
 }
 
-const PostCard: FC<PostCardProps> = ({ post, onTogglePinned }) => {
-  const navigate = useNavigate()
+export const PostCard: FC<PostCardProps> = ({ post, onTogglePinned }) => {
   const theme = useMantineTheme()
   const { role } = useUserRole()
   const { t } = useTranslation()
@@ -47,7 +46,7 @@ const PostCard: FC<PostCardProps> = ({ post, onTogglePinned }) => {
         />
         <Stack gap="xs" w="calc(100% - 3rem)">
           {RequireRole(Role.Admin, role) ? (
-            <Group justify="space-between">
+            <Group justify="space-between" wrap="nowrap">
               <Title order={3}>
                 {post.isPinned && (
                   <Text fw="bold" fz="h3" span c={theme.primaryColor}>
@@ -59,14 +58,10 @@ const PostCard: FC<PostCardProps> = ({ post, onTogglePinned }) => {
               <Group justify="right">
                 {onTogglePinned && (
                   <ActionIcon disabled={disabled} onClick={() => onTogglePinned(post, setDisabled)}>
-                    {post.isPinned ? (
-                      <Icon path={mdiPinOffOutline} size={1} />
-                    ) : (
-                      <Icon path={mdiPinOutline} size={1} />
-                    )}
+                    {post.isPinned ? <Icon path={mdiPinOffOutline} size={1} /> : <Icon path={mdiPinOutline} size={1} />}
                   </ActionIcon>
                 )}
-                <ActionIcon onClick={() => navigate(`/posts/${post.id}/edit`)}>
+                <ActionIcon component={Link} to={`/posts/${post.id}/edit`}>
                   <Icon path={mdiPencilOutline} size={1} />
                 </ActionIcon>
               </Group>
@@ -116,5 +111,3 @@ const PostCard: FC<PostCardProps> = ({ post, onTogglePinned }) => {
     </Card>
   )
 }
-
-export default PostCard

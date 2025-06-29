@@ -1,12 +1,4 @@
-import {
-  ActionIcon,
-  Button,
-  Input,
-  InputWrapperProps,
-  ScrollArea,
-  Stack,
-  TextInput,
-} from '@mantine/core'
+import { ActionIcon, Button, Input, InputWrapperProps, ScrollArea, Stack, TextInput } from '@mantine/core'
 import { mdiClose, mdiPlus } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC } from 'react'
@@ -68,5 +60,3 @@ export const HintList: FC<HintListProps> = (props) => {
     </Input.Wrapper>
   )
 }
-
-export default HintList

@@ -8,9 +8,9 @@ namespace GZCTF.Models.Data;
 public class UserParticipation
 {
     /// <summary>
-    /// 参赛对象
+    /// Participation object
     /// </summary>
-    public Participation Participation = default!;
+    public Participation Participation = null!;
 
     public UserParticipation() { }
 
@@ -24,40 +24,40 @@ public class UserParticipation
     #region Db Relationship
 
     /// <summary>
-    /// 参赛用户 Id
+    /// User ID
     /// </summary>
     [Required]
     public Guid UserId { get; set; }
 
     /// <summary>
-    /// 参赛用户
+    /// User
     /// </summary>
-    public UserInfo User { get; set; } = default!;
+    public UserInfo User { get; set; } = null!;
 
     /// <summary>
-    /// 参赛队伍 Id
+    /// Team ID
     /// </summary>
     [Required]
     public int TeamId { get; set; }
 
     /// <summary>
-    /// 参赛队伍
+    /// Team
     /// </summary>
-    public Team Team { get; set; } = default!;
+    public Team Team { get; set; } = null!;
 
     /// <summary>
-    /// 比赛 Id
+    /// Game ID
     /// </summary>
     [Required]
     public int GameId { get; set; }
 
     /// <summary>
-    /// 比赛
+    /// Game
     /// </summary>
-    public Game Game { get; set; } = default!;
+    public Game Game { get; set; } = null!;
 
     /// <summary>
-    /// 参与对象 Id
+    /// Participation ID
     /// </summary>
     [Required]
     public int ParticipationId { get; set; }

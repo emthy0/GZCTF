@@ -22,18 +22,21 @@ import { mdiCheck, mdiContentSaveOutline, mdiRestore } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import ColorPreview from '@Components/ColorPreview'
-import LogoBox from '@Components/LogoBox'
-import AdminPage from '@Components/admin/AdminPage'
+import { ColorPreview } from '@Components/ColorPreview'
+import { LogoBox } from '@Components/LogoBox'
+import { AdminPage } from '@Components/admin/AdminPage'
 import { SwitchLabel } from '@Components/admin/SwitchLabel'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { webCryptoAvailable } from '@Utils/Crypto'
+import { showErrorMsg } from '@Utils/Shared'
 import { IMAGE_MIME_TYPES } from '@Utils/Shared'
-import { OnceSWRConfig, useConfig } from '@Utils/useConfig'
+import { OnceSWRConfig, useCaptchaConfig, useConfig } from '@Hooks/useConfig'
 import api, { AccountPolicy, ConfigEditModel, ContainerPolicy, GlobalConfig } from '@Api'
 import btnClasses from '@Styles/FixedButton.module.css'
+import misc from '@Styles/Misc.module.css'
 
 const Configs: FC = () => {
   const { data: configs, mutate } = api.admin.useAdminGetConfigs(OnceSWRConfig)
+  const { mutate: mutateCaptchaConfig } = useCaptchaConfig()
 
   const { mutate: mutateConfig } = useConfig()
   const [disabled, setDisabled] = useState(false)
@@ -69,27 +72,27 @@ const Configs: FC = () => {
 
       mutate({ ...conf })
       mutateConfig({ ...conf.globalConfig, ...conf.containerPolicy })
+      mutateCaptchaConfig()
     } catch (e) {
-      showErrorNotification(e, t)
+      showErrorMsg(e, t)
     } finally {
       setDisabled(false)
     }
   }
 
-  const onResetLogo = () => {
+  const onResetLogo = async () => {
     setDisabled(true)
     setLogoFile(null)
 
-    api.admin
-      .adminResetLogo()
-      .then(() => {
-        mutate({ ...configs, globalConfig: { ...globalConfig, faviconHash: '' } })
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        mutateConfig({ ...configs, logoUrl: '' })
-        setDisabled(false)
-      })
+    try {
+      await api.admin.adminResetLogo()
+      mutate({ ...configs, globalConfig: { ...globalConfig, faviconHash: '' } })
+      mutateConfig({ ...configs, logoUrl: '' })
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   const colors = color && /^#[0-9A-F]{6}$/i.test(color) ? generateColors(color) : theme.colors.brand
@@ -127,7 +130,7 @@ const Configs: FC = () => {
         <Stack gap="sm">
           <Title order={2}>{t('admin.content.settings.platform.title')}</Title>
           <Divider />
-          <Grid columns={4}>
+          <Grid columns={4} align="center">
             <Grid.Col span={1}>
               <TextInput
                 label={t('admin.content.settings.platform.name.label')}
@@ -168,7 +171,7 @@ const Configs: FC = () => {
                 rightSection={
                   <Tooltip label={t('common.button.reset')}>
                     <ActionIcon onClick={onResetLogo}>
-                      <Icon path={mdiRestore} />
+                      <Icon path={mdiRestore} size={0.85} />
                     </ActionIcon>
                   </Tooltip>
                 }
@@ -178,10 +181,7 @@ const Configs: FC = () => {
               <Group gap="sm" align="flex-end" justify="center">
                 {[20, 40, 60, 80].map((size) => (
                   <Stack align="center" justify="space-between" gap={0} key={size}>
-                    <LogoBox
-                      size={size}
-                      url={logoFile ? URL.createObjectURL(logoFile) : undefined}
-                    />
+                    <LogoBox size={size} url={logoFile ? URL.createObjectURL(logoFile) : undefined} />
                     <Text fw="bold" ta="center" size="xs">
                       {size}px
                     </Text>
@@ -201,7 +201,6 @@ const Configs: FC = () => {
                 }}
               />
             </Grid.Col>
-
             <Grid.Col span={1}>
               <ColorInput
                 label={t('admin.content.settings.platform.color.label')}
@@ -221,14 +220,12 @@ const Configs: FC = () => {
                 component={ColorPreview}
                 colors={colors}
                 displayColorsInfo={false}
-                styles={{
-                  input: {
-                    display: 'flex',
-                  },
+                classNames={{
+                  input: misc.flex,
                 }}
               />
             </Grid.Col>
-            <Grid.Col span={4}>
+            <Grid.Col span={3}>
               <TextInput
                 label={t('admin.content.settings.platform.footer.label')}
                 description={t('admin.content.settings.platform.footer.description')}
@@ -238,6 +235,24 @@ const Configs: FC = () => {
                 onChange={(e) => {
                   setGlobalConfig({ ...globalConfig, footerInfo: e.currentTarget.value })
                 }}
+              />
+            </Grid.Col>
+            <Grid.Col span={1} className={misc.alignCenter}>
+              <Switch
+                checked={globalConfig?.apiEncryption ?? false}
+                disabled={disabled || !webCryptoAvailable}
+                readOnly
+                label={SwitchLabel(
+                  t('admin.content.settings.platform.api_encryption.label'),
+                  t('admin.content.settings.platform.api_encryption.description'),
+                  webCryptoAvailable ? null : t('admin.content.settings.platform.api_encryption.not_available')
+                )}
+                onChange={(e) =>
+                  setGlobalConfig({
+                    ...globalConfig,
+                    apiEncryption: e.currentTarget.checked,
+                  })
+                }
               />
             </Grid.Col>
           </Grid>
@@ -316,7 +331,7 @@ const Configs: FC = () => {
         <Stack gap="sm">
           <Title order={2}>{t('admin.content.settings.container.title')}</Title>
           <Divider />
-          <SimpleGrid cols={4} style={{ alignItems: 'center' }}>
+          <SimpleGrid cols={4} className={misc.alignCenter}>
             <NumberInput
               label={t('admin.content.settings.container.default_lifetime.label')}
               description={t('admin.content.settings.container.default_lifetime.description')}

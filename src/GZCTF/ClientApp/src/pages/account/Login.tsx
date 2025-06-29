@@ -5,12 +5,16 @@ import { mdiCheck, mdiClose } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import AccountView from '@Components/AccountView'
-import Captcha, { useCaptchaRef } from '@Components/Captcha'
-import { usePageTitle } from '@Utils/usePageTitle'
-import { useUser } from '@Utils/useUser'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { AccountView } from '@Components/AccountView'
+import { Captcha, useCaptchaRef } from '@Components/Captcha'
+import { encryptApiData } from '@Utils/Crypto'
+import { tryGetClientError } from '@Utils/Shared'
+import { useConfig } from '@Hooks/useConfig'
+import { usePageTitle } from '@Hooks/usePageTitle'
+import { useUser } from '@Hooks/useUser'
 import api from '@Api'
+import misc from '@Styles/Misc.module.css'
 
 const Login: FC = () => {
   const params = useSearchParams()[0]
@@ -21,8 +25,9 @@ const Login: FC = () => {
   const [disabled, setDisabled] = useState(false)
   const [needRedirect, setNeedRedirect] = useState(false)
 
-  const { captchaRef, getToken } = useCaptchaRef()
+  const { captchaRef, getToken, cleanUp } = useCaptchaRef()
   const { user, mutate } = useUser()
+  const { config } = useConfig()
 
   const { t } = useTranslation()
 
@@ -77,7 +82,7 @@ const Login: FC = () => {
     try {
       await api.account.accountLogIn({
         userName: uname,
-        password: pwd,
+        password: await encryptApiData(t, pwd, config.apiPublicKey),
         challenge: token,
       })
 
@@ -90,18 +95,21 @@ const Login: FC = () => {
         autoClose: true,
         loading: false,
       })
+      cleanUp(true)
       setNeedRedirect(true)
       mutate()
     } catch (err: any) {
+      const { title, message } = tryGetClientError(err, t)
       updateNotification({
         id: 'login-status',
         color: 'red',
-        title: t('common.error.encountered'),
-        message: err.response.data.title,
+        title,
+        message,
         icon: <Icon path={mdiClose} size={1} />,
         autoClose: true,
         loading: false,
       })
+      cleanUp(false)
     } finally {
       setDisabled(false)
     }
@@ -130,14 +138,7 @@ const Login: FC = () => {
         onChange={(event) => setPwd(event.currentTarget.value)}
       />
       <Captcha action="login" ref={captchaRef} />
-      <Anchor
-        sx={(theme) => ({
-          fontSize: theme.fontSizes.xs,
-          alignSelf: 'end',
-        })}
-        component={Link}
-        to="/account/recovery"
-      >
+      <Anchor fz="xs" className={misc.alignSelfEnd} component={Link} to="/account/recovery">
         {t('account.anchor.recovery')}
       </Anchor>
       <Grid grow w="100%">

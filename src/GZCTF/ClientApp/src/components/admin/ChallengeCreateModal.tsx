@@ -5,59 +5,59 @@ import { mdiCheck } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
-import { showErrorNotification } from '@Utils/ApiHelper'
+import { useNavigate, useParams } from 'react-router'
+import { showErrorMsg } from '@Utils/Shared'
 import {
-  ChallengeTagItem,
+  ChallengeCategoryItem,
+  ChallengeCategoryList,
   ChallengeTypeItem,
-  useChallengeTagLabelMap,
+  useChallengeCategoryLabelMap,
   useChallengeTypeLabelMap,
 } from '@Utils/Shared'
-import api, { ChallengeInfoModel, ChallengeTag, ChallengeType } from '@Api'
+import api, { ChallengeInfoModel, ChallengeCategory, ChallengeType } from '@Api'
 
 interface ChallengeCreateModalProps extends ModalProps {
   onAddChallenge: (game: ChallengeInfoModel) => void
 }
 
-const ChallengeCreateModal: FC<ChallengeCreateModalProps> = (props) => {
+export const ChallengeCreateModal: FC<ChallengeCreateModalProps> = (props) => {
   const { id } = useParams()
   const { onAddChallenge, ...modalProps } = props
   const [disabled, setDisabled] = useState(false)
   const navigate = useNavigate()
-  const challengeTagLabelMap = useChallengeTagLabelMap()
+  const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
   const challengeTypeLabelMap = useChallengeTypeLabelMap()
 
   const [title, setTitle] = useInputState('')
-  const [tag, setTag] = useState<string | null>(null)
+  const [category, setCategory] = useState<string | null>(null)
   const [type, setType] = useState<string | null>(null)
 
   const { t } = useTranslation()
 
-  const onCreate = () => {
-    if (!title || !tag || !type) return
+  const onCreate = async () => {
+    if (!title || !category || !type) return
 
     setDisabled(true)
     const numId = parseInt(id ?? '-1')
 
-    api.edit
-      .editAddGameChallenge(numId, {
+    try {
+      const res = await api.edit.editAddGameChallenge(numId, {
         title: title,
-        tag: tag as ChallengeTag,
+        category: category as ChallengeCategory,
         type: type as ChallengeType,
       })
-      .then((data) => {
-        showNotification({
-          color: 'teal',
-          message: t('admin.notification.games.challenges.created'),
-          icon: <Icon path={mdiCheck} size={1} />,
-        })
-        onAddChallenge(data.data)
-        navigate(`/admin/games/${id}/challenges/${data.data.id}`)
+      showNotification({
+        color: 'teal',
+        message: t('admin.notification.games.challenges.created'),
+        icon: <Icon path={mdiCheck} size={1} />,
       })
-      .catch((err) => {
-        showErrorNotification(err, t)
-        setDisabled(false)
-      })
+      onAddChallenge(res.data)
+      navigate(`/admin/games/${id}/challenges/${res.data.id}`)
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   return (
@@ -73,14 +73,14 @@ const ChallengeCreateModal: FC<ChallengeCreateModalProps> = (props) => {
         />
         <Select
           required
-          label={t('admin.content.games.challenges.tag')}
-          placeholder="Tag"
-          value={tag}
-          onChange={setTag}
-          renderOption={ChallengeTagItem}
-          data={Object.entries(ChallengeTag).map((tag) => {
-            const data = challengeTagLabelMap.get(tag[1])
-            return { value: tag[1], label: data?.name, ...data } as ComboboxItem
+          label={t('admin.content.games.challenges.category')}
+          placeholder="Category"
+          value={category}
+          onChange={setCategory}
+          renderOption={ChallengeCategoryItem}
+          data={ChallengeCategoryList.map((category) => {
+            const data = challengeCategoryLabelMap.get(category)
+            return { value: category, label: data?.name, ...data } as ComboboxItem
           })}
         />
         <Select
@@ -103,5 +103,3 @@ const ChallengeCreateModal: FC<ChallengeCreateModalProps> = (props) => {
     </Modal>
   )
 }
-
-export default ChallengeCreateModal

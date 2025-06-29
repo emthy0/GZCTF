@@ -18,7 +18,9 @@ import cx from 'clsx'
 import dayjs from 'dayjs'
 import React, { FC, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import AdminPage from '@Components/admin/AdminPage'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { handleAxiosError } from '@Utils/ApiHelper'
+import { useLanguage } from '@Utils/I18n'
 import { TaskStatusColorMap } from '@Utils/Shared'
 import { useDisplayInputStyles } from '@Utils/ThemeOverride'
 import api, { LogMessageModel, TaskStatus } from '@Api'
@@ -43,6 +45,7 @@ const Logs: FC = () => {
   const [logs, setLogs] = useState<LogMessageModel[]>()
 
   const { t } = useTranslation()
+  const { locale } = useLanguage()
   const viewport = useRef<HTMLDivElement>(null)
   const { classes: inputClasses } = useDisplayInputStyles({ fw: 500, ff: 'monospace' })
 
@@ -51,23 +54,26 @@ const Logs: FC = () => {
   }, [activePage, level, viewport])
 
   useEffect(() => {
-    api.admin
-      .adminLogs({
-        level,
-        count: ITEM_COUNT_PER_PAGE,
-        skip: (activePage - 1) * ITEM_COUNT_PER_PAGE,
-      })
-      .then((data) => {
-        setLogs(data.data)
-      })
-      .catch((err) => {
+    const fetchLogs = async () => {
+      try {
+        const res = await api.admin.adminLogs({
+          level,
+          count: ITEM_COUNT_PER_PAGE,
+          skip: (activePage - 1) * ITEM_COUNT_PER_PAGE,
+        })
+        setLogs(res.data)
+      } catch (err) {
         showNotification({
           color: 'red',
           title: t('admin.notification.logs.fetch_failed'),
-          message: err.response.data.title,
+          message: await handleAxiosError(err),
           icon: <Icon path={mdiClose} size={1} />,
         })
-      })
+      }
+    }
+
+    fetchLogs()
+
     if (activePage === 1) {
       newLogs.current = []
     }
@@ -93,18 +99,20 @@ const Logs: FC = () => {
       update(new Date(message.time!))
     })
 
-    connection
-      .start()
-      .then(() => {
+    const startConnection = async () => {
+      try {
+        await connection.start()
         showNotification({
           color: 'teal',
           message: t('admin.notification.logs.connected'),
           icon: <Icon path={mdiCheck} size={1} />,
         })
-      })
-      .catch((error) => {
-        console.error(error)
-      })
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    startConnection()
 
     return () => {
       connection.stop().catch((err) => {
@@ -119,27 +127,18 @@ const Logs: FC = () => {
       <Table.Tr
         key={`${item.time}@${i}`}
         className={
-          i === 0 &&
-          activePage === 1 &&
-          newLogs.current.length > 0 &&
-          newLogs.current[0].level === level
+          i === 0 && activePage === 1 && newLogs.current.length > 0 && newLogs.current[0].level === level
             ? tableClasses.fade
             : undefined
         }
       >
         <Table.Td>
-          <Badge size="sm" color="indigo">
-            {dayjs(item.time).format('MM/DD HH:mm:ss')}
+          <Badge size="sm" color="indigo" fullWidth>
+            {dayjs(item.time).locale(locale).format('SL HH:mm:ss')}
           </Badge>
         </Table.Td>
         <Table.Td>
-          <Input
-            variant="unstyled"
-            value={item.ip || ''}
-            readOnly
-            size="sm"
-            classNames={inputClasses}
-          />
+          <Input variant="unstyled" value={item.ip || ''} readOnly size="sm" classNames={inputClasses} />
         </Table.Td>
         <Table.Td>
           <Text ff="monospace" size="sm" fw="bold" lineClamp={1}>
@@ -167,11 +166,7 @@ const Logs: FC = () => {
           <SegmentedControl
             color={theme.primaryColor}
             value={level}
-            styles={{
-              root: {
-                background: 'transparent',
-              },
-            }}
+            bg="transparent"
             onChange={(value) => setLevel(value as LogLevel)}
             data={Object.entries(LogLevel).map((role) => ({
               value: role[1],
@@ -179,11 +174,7 @@ const Logs: FC = () => {
             }))}
           />
           <Group justify="right">
-            <ActionIcon
-              size="lg"
-              disabled={activePage <= 1}
-              onClick={() => setPage(activePage - 1)}
-            >
+            <ActionIcon size="lg" disabled={activePage <= 1} onClick={() => setPage(activePage - 1)}>
               <Icon path={mdiArrowLeftBold} size={1} />
             </ActionIcon>
             <Text fw="bold" size="sm">
@@ -201,20 +192,15 @@ const Logs: FC = () => {
       }
     >
       <Paper shadow="md" p="md" w="100%">
-        <ScrollArea
-          viewportRef={viewport}
-          offsetScrollbars
-          scrollbarSize={4}
-          h="calc(100vh - 190px)"
-        >
+        <ScrollArea viewportRef={viewport} offsetScrollbars scrollbarSize={4} h="calc(100vh - 190px)">
           <Table className={cx(tableClasses.table, tableClasses.nopadding)}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th style={{ width: '6rem' }}>{t('common.label.time')}</Table.Th>
-                <Table.Th style={{ width: '12%' }}>{t('common.label.ip')}</Table.Th>
-                <Table.Th style={{ width: '6rem' }}>{t('common.label.user')}</Table.Th>
+                <Table.Th w="7rem">{t('common.label.time')}</Table.Th>
+                <Table.Th w="12%">{t('common.label.ip')}</Table.Th>
+                <Table.Th w="6rem">{t('common.label.user')}</Table.Th>
                 <Table.Th>{t('admin.label.logs.message')}</Table.Th>
-                <Table.Th style={{ width: '3rem' }}>{t('admin.label.logs.status')}</Table.Th>
+                <Table.Th w="5rem">{t('admin.label.logs.status')}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>{rows}</Table.Tbody>

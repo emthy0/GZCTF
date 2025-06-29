@@ -1,24 +1,17 @@
-import {
-  Badge,
-  Card,
-  Center,
-  Group,
-  Image,
-  Stack,
-  Text,
-  Title,
-  useMantineTheme,
-} from '@mantine/core'
+import { Badge, Card, Center, Group, Image, Stack, Text, Title, useMantineTheme } from '@mantine/core'
 import { mdiFlagOutline } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import dayjs from 'dayjs'
 import { FC } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { GameColorMap, GameStatus } from '@Components/GameCard'
-import { getGameStatus } from '@Utils/useGame'
+import { useLanguage } from '@Utils/I18n'
+import { useForeground } from '@Hooks/useForeground'
+import { getGameStatus } from '@Hooks/useGame'
 import { BasicGameInfoModel } from '@Api'
 import classes from '@Styles/HoverCard.module.css'
+import misc from '@Styles/Misc.module.css'
 
 export interface RecentGameProps {
   game: BasicGameInfoModel
@@ -26,8 +19,9 @@ export interface RecentGameProps {
 
 const POSTER_HEIGHT = '9rem'
 
-const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
+export const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
   const { t } = useTranslation()
+  const { locale } = useLanguage()
 
   const { title, poster } = game
   const { startTime, endTime, status } = getGameStatus(game)
@@ -35,8 +29,9 @@ const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
 
   const color = GameColorMap.get(status)
 
-  const duration =
-    status === GameStatus.OnGoing ? endTime.diff(dayjs(), 'h') : endTime.diff(startTime, 'h')
+  const duration = status === GameStatus.OnGoing ? endTime.diff(dayjs(), 'h') : endTime.diff(startTime, 'h')
+
+  const titleColor = useForeground(poster)
 
   return (
     <Card {...others} shadow="sm" component={Link} to={`/games/${game.id}`} classNames={classes}>
@@ -50,14 +45,7 @@ const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
         )}
       </Card.Section>
 
-      <Card.Section
-        inheritPadding
-        pos="relative"
-        mt={`calc(16px - ${POSTER_HEIGHT})`}
-        style={{
-          alignContent: 'flex-end',
-        }}
-      >
+      <Card.Section inheritPadding pos="relative" mt={`calc(16px - ${POSTER_HEIGHT})`} className={misc.alignEnd}>
         <Group wrap="nowrap" gap="xs" justify="right">
           <Badge size="xs" color={color} variant="filled">
             {status}
@@ -69,14 +57,11 @@ const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
         h={34}
         pos="relative"
         mt={`calc(${POSTER_HEIGHT} - 2rem - 34px)`}
-        bg="rgba(0,0,0,.5)"
         display="flex"
         p="0 16px"
-        style={{
-          alignItems: 'center',
-        }}
+        className={misc.alignCenter}
       >
-        <Title lineClamp={1} order={4} ta="left" c={theme.colors.gray[0]}>
+        <Title lineClamp={1} order={4} ta="left" c={titleColor}>
           &gt; {title}
         </Title>
       </Card.Section>
@@ -88,15 +73,13 @@ const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
           </Text>
           <Badge size="xs" color={color} variant="light">
             {status === GameStatus.Coming
-              ? dayjs(startTime).format('YY/MM/DD HH:mm')
-              : dayjs(endTime).format('YY/MM/DD HH:mm')}
+              ? dayjs(startTime).locale(locale).format('L LT')
+              : dayjs(endTime).locale(locale).format('L LT')}
           </Badge>
         </Group>
         <Group wrap="nowrap" gap={0} justify="space-between">
           <Text size="sm" fw="bold">
-            {status === GameStatus.OnGoing
-              ? t('game.content.remaining_time')
-              : t('game.content.total_time')}
+            {status === GameStatus.OnGoing ? t('game.content.remaining_time') : t('game.content.total_time')}
           </Text>
           <Badge size="xs" color={color} variant="light">
             {t('game.content.duration', { hours: duration })}
@@ -106,5 +89,3 @@ const RecentGame: FC<RecentGameProps> = ({ game, ...others }) => {
     </Card>
   )
 }
-
-export default RecentGame

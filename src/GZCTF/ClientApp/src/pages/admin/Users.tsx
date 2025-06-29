@@ -30,11 +30,11 @@ import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ActionIconWithConfirm } from '@Components/ActionIconWithConfirm'
-import AdminPage from '@Components/admin/AdminPage'
-import UserEditModal, { RoleColorMap } from '@Components/admin/UserEditModal'
-import { showErrorNotification } from '@Utils/ApiHelper'
-import { useArrayResponse } from '@Utils/useArrayResponse'
-import { useUser } from '@Utils/useUser'
+import { AdminPage } from '@Components/admin/AdminPage'
+import { UserEditModal, RoleColorMap } from '@Components/admin/UserEditModal'
+import { showErrorMsg } from '@Utils/Shared'
+import { useArrayResponse } from '@Hooks/useArrayResponse'
+import { useUser } from '@Hooks/useUser'
 import api, { Role, UserInfoModel } from '@Api'
 import tableClasses from '@Styles/Table.module.css'
 
@@ -45,12 +45,7 @@ const Users: FC = () => {
   const [update, setUpdate] = useState(new Date())
   const [editModalOpened, setEditModalOpened] = useState(false)
   const [activeUser, setActiveUser] = useState<UserInfoModel>({})
-  const {
-    data: users,
-    total,
-    setData: setUsers,
-    updateData: updateUsers,
-  } = useArrayResponse<UserInfoModel>()
+  const { data: users, total, setData: setUsers, updateData: updateUsers } = useArrayResponse<UserInfoModel>()
   const [hint, setHint] = useInputState('')
   const [searching, setSearching] = useState(false)
   const [disabled, setDisabled] = useState(false)
@@ -67,70 +62,67 @@ const Users: FC = () => {
   }, [page, viewport])
 
   useEffect(() => {
-    api.admin
-      .adminUsers({
-        count: ITEM_COUNT_PER_PAGE,
-        skip: (page - 1) * ITEM_COUNT_PER_PAGE,
-      })
-      .then((res) => {
-        setUsers(res.data)
-        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
-      })
-  }, [page, update])
-
-  const onSearch = () => {
-    if (!hint) {
-      api.admin
-        .adminUsers({
+    const fetchData = async () => {
+      try {
+        const res = await api.admin.adminUsers({
           count: ITEM_COUNT_PER_PAGE,
           skip: (page - 1) * ITEM_COUNT_PER_PAGE,
         })
-        .then((res) => {
-          setUsers(res.data)
-          setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
-        })
-      return
+        setUsers(res.data)
+        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
+      } catch (err) {
+        showErrorMsg(err, t)
+      }
     }
 
-    setSearching(true)
+    fetchData()
+  }, [page, update])
 
-    api.admin
-      .adminSearchUsers({
-        hint,
-      })
-      .then((res) => {
+  const onSearch = async () => {
+    try {
+      if (!hint) {
+        const res = await api.admin.adminUsers({
+          count: ITEM_COUNT_PER_PAGE,
+          skip: (page - 1) * ITEM_COUNT_PER_PAGE,
+        })
+        setUsers(res.data)
+        setCurrent((page - 1) * ITEM_COUNT_PER_PAGE + res.data.length)
+      } else {
+        const res = await api.admin.adminSearchUsers({ hint })
         setUsers(res.data)
         setCurrent(res.data.length)
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setSearching(false)
-      })
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setSearching(false)
+    }
   }
 
-  const onToggleActive = (user: UserInfoModel) => {
+  const onToggleActive = async (user: UserInfoModel) => {
     setDisabled(true)
-    api.admin
-      .adminUpdateUserInfo(user.id!, {
+
+    try {
+      await api.admin.adminUpdateUserInfo(user.id!, {
         emailConfirmed: !user.emailConfirmed,
       })
-      .then(() => {
-        users &&
-          updateUsers(
-            users.map((u) =>
-              u.id === user.id
-                ? {
-                    ...u,
-                    emailConfirmed: !u.emailConfirmed,
-                  }
-                : u
-            )
+      if (users) {
+        updateUsers(
+          users.map((u) =>
+            u.id === user.id
+              ? {
+                  ...u,
+                  emailConfirmed: !u.emailConfirmed,
+                }
+              : u
           )
-      })
-      .catch((e) => showErrorNotification(e, t))
-      .finally(() => {
-        setDisabled(false)
-      })
+        )
+      }
+    } catch (e) {
+      showErrorMsg(e, t)
+    } finally {
+      setDisabled(false)
+    }
   }
 
   const onResetPassword = async (user: UserInfoModel) => {
@@ -167,7 +159,7 @@ const Users: FC = () => {
         ),
       })
     } catch (err: any) {
-      showErrorNotification(err, t)
+      showErrorMsg(err, t)
     } finally {
       setDisabled(false)
     }
@@ -186,11 +178,13 @@ const Users: FC = () => {
         color: 'teal',
         icon: <Icon path={mdiCheck} size={1} />,
       })
-      users && updateUsers(users.filter((x) => x.id !== user.id))
+      if (users) {
+        updateUsers(users.filter((x) => x.id !== user.id))
+      }
       setCurrent(current - 1)
       setUpdate(new Date())
     } catch (e: any) {
-      showErrorNotification(e, t)
+      showErrorMsg(e, t)
     } finally {
       setDisabled(false)
     }
@@ -208,7 +202,7 @@ const Users: FC = () => {
             value={hint}
             onChange={setHint}
             onKeyDown={(e) => {
-              !searching && e.key === 'Enter' && onSearch()
+              if (!searching && e.key === 'Enter') onSearch()
             }}
             rightSection={<Icon path={mdiAccountOutline} size={1} />}
           />
@@ -230,11 +224,7 @@ const Users: FC = () => {
             <Text fw="bold" size="sm">
               {page}
             </Text>
-            <ActionIcon
-              size="lg"
-              disabled={page * ITEM_COUNT_PER_PAGE >= total}
-              onClick={() => setPage(page + 1)}
-            >
+            <ActionIcon size="lg" disabled={page * ITEM_COUNT_PER_PAGE >= total} onClick={() => setPage(page + 1)}>
               <Icon path={mdiArrowRightBold} size={1} />
             </ActionIcon>
           </Group>
@@ -242,16 +232,11 @@ const Users: FC = () => {
       }
     >
       <Paper shadow="md" p="xs" w="100%">
-        <ScrollArea
-          viewportRef={viewport}
-          offsetScrollbars
-          scrollbarSize={4}
-          h="calc(100vh - 190px)"
-        >
+        <ScrollArea viewportRef={viewport} offsetScrollbars scrollbarSize={4} h="calc(100vh - 190px)">
           <Table className={tableClasses.table}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th style={{ minWidth: '1.8rem' }}>{t('admin.label.users.active')}</Table.Th>
+                <Table.Th miw="1.8rem">{t('admin.label.users.active')}</Table.Th>
                 <Table.Th>{t('common.label.user')}</Table.Th>
                 <Table.Th>{t('account.label.email')}</Table.Th>
                 <Table.Th>{t('common.label.ip')}</Table.Th>
@@ -346,9 +331,7 @@ const Users: FC = () => {
           onClose={() => setEditModalOpened(false)}
           mutateUser={(user: UserInfoModel) => {
             updateUsers(
-              [user, ...(users?.filter((n) => n.id !== user.id) ?? [])].sort((a, b) =>
-                a.id! < b.id! ? -1 : 1
-              )
+              [user, ...(users?.filter((n) => n.id !== user.id) ?? [])].sort((a, b) => (a.id! < b.id! ? -1 : 1))
             )
           }}
         />
