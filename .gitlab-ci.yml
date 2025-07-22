@@ -10,15 +10,18 @@ build:
   stage: build
   image: ubuntu:24.04
   services:
-    - docker:24.0-dind
+    - name: docker:24.0-dind
+      alias: docker
   variables:
+    # Configure TLS properly
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "/certs/client"
+    DOCKER_DRIVER: overlay2
   before_script:
     # Install required packages
-    - apt-get update && apt-get install -y curl gnupg apt-transport-https ca-certificates software-properties-common
+    - apt-get update && apt-get install -y curl gnupg apt-transport-https ca-certificates software-properties-common lsb-release
     
     # Add Microsoft package repository for .NET
     - curl -sSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o packages-microsoft-prod.deb
@@ -46,20 +49,24 @@ build:
     # Set current datetime
     - CURRENT_DATETIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
-    # Setup QEMU for multi-arch builds
+    # Setup buildx for multi-arch builds
     - mkdir -p ~/.docker/cli-plugins/
     - curl -L https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
     - chmod +x ~/.docker/cli-plugins/docker-buildx
     
-    # Create Docker context for the Docker-in-Docker service
-    - docker context create dind-context --description "Docker in Docker Context" --docker "host=tcp://docker:2376,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
-    - docker context use dind-context
+    # Set proper Docker environment to avoid conflicts
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - unset DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH
+    - docker version
     
     # Install QEMU for multi-arch support
-    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - docker run --privileged --rm multiarch/qemu-user-static:register --reset
     
-    # Setup Docker Buildx
-    - docker buildx create --name mybuilder --use
+    # Setup Docker Buildx with proper builder
+    - docker buildx ls
+    - docker buildx create --name mybuilder
+    - docker buildx use mybuilder
+    - docker buildx inspect --bootstrap
     
     # Change to project directory
     - cd src/GZCTF
@@ -139,3 +146,43 @@ build:
     - if: $CI_PIPELINE_SOURCE == "web"
     - changes:
         - src/**/*
+
+cleanup:
+  stage: cleanup
+  image: 
+    name: alpine:latest
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    # Get list of all container registry repositories
+    - |
+      echo "Cleaning up old container images..."
+      
+      # Get all repositories
+      REPOSITORIES=$(curl --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories" | jq -r '.[].id')
+      
+      for repo_id in $REPOSITORIES; do
+        # Get all tags for this repository
+        TAGS=$(curl --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags" | jq -r '.[].name')
+        
+        # Delete tags that don't match our patterns
+        for tag in $TAGS; do
+          # Keep latest, develop, and version tags
+          if [[ "$tag" != "latest" && "$tag" != "develop" && ! "$tag" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "Deleting tag: $tag"
+            curl --request DELETE --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags/$tag"
+          fi
+        done
+        
+        # Delete untagged images
+        echo "Deleting untagged images for repository $repo_id"
+        curl --request DELETE --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags" --data "name_regex=.*" --data "keep_n=0" --data "name_regex_delete=.*-untagged"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+  needs:
+    - build
+  allow_failure: true
