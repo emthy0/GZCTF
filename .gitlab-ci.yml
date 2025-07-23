@@ -10,18 +10,14 @@ build:
   stage: build
   image: ubuntu:24.04
   services:
-    - name: docker:24.0-dind
-      alias: docker
+    - docker:24.0-dind
   variables:
-    # Configure TLS properly
-    DOCKER_HOST: tcp://docker:2376
+    # We'll use context flags instead of environment variables
     DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "/certs/client"
-    DOCKER_DRIVER: overlay2
   before_script:
     # Install required packages
-    - apt-get update && apt-get install -y curl gnupg apt-transport-https ca-certificates software-properties-common lsb-release
+    - apt-get update && apt-get install -y curl gnupg apt-transport-https ca-certificates software-properties-common
     
     # Add Microsoft package repository for .NET
     - curl -sSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o packages-microsoft-prod.deb
@@ -44,29 +40,24 @@ build:
     - npm i -g pnpm
     
     # Login to GitLab Registry
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker --context default login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     # Set current datetime
     - CURRENT_DATETIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
-    # Setup buildx for multi-arch builds
+    # Setup QEMU for multi-arch builds
     - mkdir -p ~/.docker/cli-plugins/
     - curl -L https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
     - chmod +x ~/.docker/cli-plugins/docker-buildx
     
-    # Set proper Docker environment to avoid conflicts
-    - export DOCKER_CLI_EXPERIMENTAL=enabled
-    - unset DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH
-    - docker version
+    # Create Docker context for the Docker-in-Docker service
+    - docker --context default context create dind-context --description "Docker in Docker Context" --docker "host=tcp://docker:2376,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     
     # Install QEMU for multi-arch support
-    - docker run --privileged --rm multiarch/qemu-user-static:register --reset
+    - docker --context dind-context run --rm --privileged multiarch/qemu-user-static --reset -p yes
     
-    # Setup Docker Buildx with proper builder
-    - docker buildx ls
-    - docker buildx create --name mybuilder
-    - docker buildx use mybuilder
-    - docker buildx inspect --bootstrap
+    # Setup Docker Buildx with explicit context
+    - docker --context dind-context buildx create --name mybuilder --use dind-context
     
     # Change to project directory
     - cd src/GZCTF
@@ -129,7 +120,7 @@ build:
     
     # Build and push the image
     - >
-      docker buildx build
+      docker --context dind-context buildx build
       --context .
       --push
       --platform $PLATFORMS
