@@ -19,6 +19,11 @@ build:
     # Set current datetime
     - CURRENT_DATETIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
+    # Set environment variables for Vite build
+    - export VITE_APP_BUILD_TIMESTAMP=$CURRENT_DATETIME
+    - export VITE_APP_GIT_SHA=$CI_COMMIT_SHA
+    - export VITE_APP_GIT_NAME=$CI_COMMIT_REF_NAME
+    
     # Setup QEMU for multi-arch builds
     - docker run --privileged --rm tonistiigi/binfmt --install all
     
@@ -31,22 +36,16 @@ build:
     # Build project
     - dotnet build "GZCTF.csproj" -c Release -o build
     
-    # Publish project
+    # Publish project for amd64
     - >
       dotnet publish "GZCTF.csproj" -c Release -o publish/linux/amd64 -r linux-x64 --no-self-contained 
       /p:PublishReadyToRun=true
-      -e VITE_APP_BUILD_TIMESTAMP=$CURRENT_DATETIME
-      -e VITE_APP_GIT_SHA=$CI_COMMIT_SHA
-      -e VITE_APP_GIT_NAME=$CI_COMMIT_REF_NAME
     
     # Only build arm64 for release tags
     - >
       if [ "$RELEASE" = "true" ]; then
         dotnet publish "GZCTF.csproj" -c Release -o publish/linux/arm64 -r linux-arm64 --no-self-contained 
         /p:PublishReadyToRun=true /p:EFOptimizeContext=false
-        -e VITE_APP_BUILD_TIMESTAMP=$CURRENT_DATETIME
-        -e VITE_APP_GIT_SHA=$CI_COMMIT_SHA
-        -e VITE_APP_GIT_NAME=$CI_COMMIT_REF_NAME
       fi
     
     # Determine tags for the image
