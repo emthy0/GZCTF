@@ -8,56 +8,22 @@ variables:
 
 build:
   stage: build
-  image: ubuntu:24.10
+  image: docker:28.3-dind
   services:
-    - docker:24.0-dind
-  variables:
-    # We'll use context flags instead of environment variables
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_CERT_PATH: "/certs/client"
+    - docker:28.3-dind
   before_script:
-    # Install required packages
-    - apt-get update && apt-get install -y curl gnupg apt-transport-https ca-certificates software-properties-common
-    
-    # Add Microsoft package repository for .NET
-    - curl -sSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o packages-microsoft-prod.deb
-    - dpkg -i packages-microsoft-prod.deb
-    - apt-get update
-    
-    # Install .NET SDK (matching the global.json specification)
-    - apt-get install -y dotnet-sdk-9.0
-    
-    # Install Docker client
-    - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-    - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-    - apt-get update && apt-get install -y docker-ce-cli
-    
-    # Install Node.js
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get install -y nodejs
-    
-    # Install pnpm
+    - apk add --no-cache dotnet8-sdk nodejs npm curl bash
     - npm i -g pnpm
-    
-    # Login to GitLab Registry
-    - docker --context default login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     # Set current datetime
     - CURRENT_DATETIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     # Setup QEMU for multi-arch builds
-    - mkdir -p ~/.docker/cli-plugins/
-    - curl -L https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
-    - chmod +x ~/.docker/cli-plugins/docker-buildx
+    - docker run --privileged --rm tonistiigi/binfmt --install all
     
-    # Create Docker context for the Docker-in-Docker service
-    - docker --context default context create dind-context --description "Docker in Docker Context" --docker "host=tcp://docker:2376,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
-    
-    # Install QEMU for multi-arch support
-    - docker --context dind-context run --rm --privileged multiarch/qemu-user-static --reset -p yes
-    
-    # Setup Docker Buildx with explicit context
-    - docker --context dind-context buildx create --name mybuilder --use dind-context
+    # Setup Docker Buildx
+    - docker buildx create --use
     
     # Change to project directory
     - cd src/GZCTF
@@ -120,7 +86,7 @@ build:
     
     # Build and push the image
     - >
-      docker --context dind-context buildx build
+      docker buildx build
       --context .
       --push
       --platform $PLATFORMS
