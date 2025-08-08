@@ -1,4 +1,5 @@
 import {
+  Alert,
   alpha,
   Avatar,
   Box,
@@ -18,7 +19,7 @@ import {
   useMantineTheme,
 } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
-import { mdiAccountGroup, mdiMagnify } from '@mdi/js'
+import { mdiAccountGroup, mdiMagnify, mdiSnowflake } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import cx from 'clsx'
 import dayjs from 'dayjs'
@@ -27,6 +28,8 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { ScoreboardItemModal } from '@Components/ScoreboardItemModal'
 import { useLanguage } from '@Utils/I18n'
+import { RequireRole } from '@Components/WithRole'
+import { useUserRole } from '@Hooks/useUser'
 import {
   BloodBonus,
   BloodsTypes,
@@ -36,7 +39,7 @@ import {
   PartialIconProps,
 } from '@Utils/Shared'
 import { useGameScoreboard } from '@Hooks/useGame'
-import { ChallengeInfo, ChallengeCategory, ScoreboardItem, SubmissionType } from '@Api'
+import { ChallengeInfo, ChallengeCategory, ScoreboardItem, SubmissionType, Role } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import classes from '@Styles/ScoreboardTable.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
@@ -254,6 +257,7 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
   const [filteredList, setFilteredList] = useState<ScoreboardItem[]>([])
 
   const { scoreboard } = useGameScoreboard(numId)
+  const { role } = useUserRole()
 
   useEffect(() => {
     setPage(1)
@@ -308,6 +312,18 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
   return (
     <Paper shadow="md" p="md">
       <Stack gap="xs">
+        {scoreboard?.isFrozen && (
+          <Alert 
+            color="blue" 
+            title={t('game.label.scoreboard_frozen.title')} 
+            icon={<Icon path={mdiSnowflake} size={1} />}
+          >
+            {RequireRole(Role.Monitor, role) 
+              ? t('game.label.scoreboard_frozen.description_admin')
+              : t('game.label.scoreboard_frozen.description')
+            }
+          </Alert>
+        )}
         <Grid>
           <Grid.Col span={3}>
             <Select

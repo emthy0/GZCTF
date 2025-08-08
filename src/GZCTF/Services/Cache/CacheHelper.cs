@@ -91,6 +91,11 @@ public static class CacheKey
     public static string ScoreBoard(string id) => $"_ScoreBoard_{id}";
 
     /// <summary>
+    /// Frozen scoreboard cache
+    /// </summary>
+    public static string FrozenScoreBoard(int id) => $"_FrozenScoreBoard_{id}";
+
+    /// <summary>
     /// Game notice cache
     /// </summary>
     public static string GameNotice(int id) => $"_GameNotice_{id}";

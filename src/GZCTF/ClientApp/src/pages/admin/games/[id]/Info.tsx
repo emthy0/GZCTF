@@ -377,6 +377,15 @@ const GameInfoEdit: FC = () => {
               )}
               onChange={(e) => game && setGame({ ...game, practiceMode: e.target.checked })}
             />
+            <Switch
+              disabled={disabled}
+              checked={game?.scoreboardFreeze ?? false}
+              label={SwitchLabel(
+                t('admin.content.games.info.scoreboard_freeze.label'),
+                t('admin.content.games.info.scoreboard_freeze.description')
+              )}
+              onChange={(e) => game && setGame({ ...game, scoreboardFreeze: e.target.checked })}
+            />
           </Stack>
         </Grid.Col>
       </Grid>

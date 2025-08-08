@@ -73,6 +73,11 @@ public class Game
     public bool RequireCountry { get; set; }
 
     /// <summary>
+    /// Whether scoreboard is frozen (no updates visible to non-admin users)
+    /// </summary>
+    public bool ScoreboardFreeze { get; set; }
+
+    /// <summary>
     /// Game invitation code
     /// </summary>
     [MaxLength(Limits.InviteTokenLength)]
@@ -209,6 +214,7 @@ public class Game
         WriteupRequired = model.WriteupRequired;
         WriteupDeadline = model.WriteupDeadline;
         RequireCountry = model.RequireCountry;
+        ScoreboardFreeze = model.ScoreboardFreeze;
         BloodBonus = BloodBonus.FromValue(model.BloodBonusValue);
 
         return this;

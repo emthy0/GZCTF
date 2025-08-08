@@ -195,6 +195,10 @@
           "description": "View challenges after the game ends",
           "label": "Practice Mode"
         },
+        "scoreboard_freeze": {
+          "description": "Hide scoreboard updates from participants",
+          "label": "Freeze Scoreboard"
+        },
         "start_date": "Start Date",
         "start_time": "Start Time",
         "summary": {

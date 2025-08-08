@@ -138,6 +138,11 @@
     },
     "score": "Score",
     "score_formatter": "{value} pts",
+    "scoreboard_frozen": {
+      "title": "Scoreboard Frozen",
+      "description": "The scoreboard has been frozen by administrators. Updates are hidden from participants.",
+      "description_admin": "The scoreboard has been frozen by administrators. You can still see live updates due to your elevated privileges."
+    },
     "score_table": {
       "all_countries": "All Countries",
       "all_teams": "All Teams",

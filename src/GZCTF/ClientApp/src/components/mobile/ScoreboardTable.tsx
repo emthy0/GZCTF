@@ -1,4 +1,6 @@
-import { Avatar, Box, Group, Input, Pagination, Paper, Select, Stack, Table, useMantineTheme } from '@mantine/core'
+import { Alert, Avatar, Box, Group, Input, Pagination, Paper, Select, Stack, Table, Text, useMantineTheme } from '@mantine/core'
+import { mdiSnowflake } from '@mdi/js'
+import { Icon } from '@mdi/react'
 import cx from 'clsx'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +9,9 @@ import { ScoreboardProps } from '@Components/ScoreboardTable'
 import { MobileScoreboardItemModal } from '@Components/mobile/ScoreboardItemModal'
 import { BloodBonus, useBonusLabels } from '@Utils/Shared'
 import { useGameScoreboard } from '@Hooks/useGame'
-import { ScoreboardItem } from '@Api'
+import { RequireRole } from '@Components/WithRole'
+import { useUserRole } from '@Hooks/useUser'
+import { ScoreboardItem, Role } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import classes from '@Styles/ScoreboardTable.module.css'
 
@@ -52,6 +56,7 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   const [countryFilter, setCountryFilter] = useState<string | null>('all')
 
   const { scoreboard } = useGameScoreboard(numId)
+  const { role } = useUserRole()
 
   let filtered = scoreboard?.items || []
   
@@ -87,6 +92,18 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   return (
     <Paper shadow="xs" p="sm">
       <Stack gap="xs">
+        {scoreboard?.isFrozen && (
+          <Alert 
+            color="blue" 
+            title={t('game.label.scoreboard_frozen.title')} 
+            icon={<Icon path={mdiSnowflake} size={1} />}
+          >
+            {RequireRole(Role.Monitor, role) 
+              ? t('game.label.scoreboard_frozen.description_admin')
+              : t('game.label.scoreboard_frozen.description')
+            }
+          </Alert>
+        )}
         {scoreboard?.timeLines && Object.keys(scoreboard.timeLines).length > 1 && (
           <Select
             defaultValue="all"
