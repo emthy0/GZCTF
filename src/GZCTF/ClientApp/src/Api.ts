@@ -527,6 +527,8 @@ export interface TeamInfoModel {
   name?: string | null;
   /** Team bio */
   bio?: string | null;
+  /** Team country */
+  country?: string | null;
   /** Avatar URL */
   avatar?: string | null;
   /** Is locked */
@@ -564,6 +566,11 @@ export interface AdminTeamModel {
    * @maxLength 72
    */
   bio?: string | null;
+  /**
+   * Team country
+   * @maxLength 72
+   */
+  country?: string | null;
   /** Is locked */
   locked?: boolean | null;
 }
@@ -1901,6 +1908,11 @@ export interface TeamUpdateModel {
    * @maxLength 72
    */
   bio?: string | null;
+  /**
+   * Team country
+   * @maxLength 72
+   */
+  country?: string | null;
 }
 
 export interface TeamTransferModel {

@@ -20,4 +20,10 @@ public class TeamUpdateModel
     [MaxLength(Limits.MaxTeamBioLength, ErrorMessageResourceName = nameof(Resources.Program.Model_TeamBioTooLong),
         ErrorMessageResourceType = typeof(Resources.Program))]
     public string? Bio { get; set; }
+
+    /// <summary>
+    /// Team country
+    /// </summary>
+    [MaxLength(72)]
+    public string? Country { get; set; }
 }

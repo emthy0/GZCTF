@@ -25,7 +25,7 @@ interface TeamEditModalProps extends ModalProps {
 
 export const TeamCreateModal: FC<TeamEditModalProps> = (props) => {
   const { disallowCreate, mutate, ...modalProps } = props
-  const [createTeam, setCreateTeam] = useState<TeamUpdateModel>({ name: '', bio: '' })
+  const [createTeam, setCreateTeam] = useState<TeamUpdateModel>({ name: '', bio: '', country: '' })
   const [disabled, setDisabled] = useState(false)
   const theme = useMantineTheme()
 
@@ -42,7 +42,7 @@ export const TeamCreateModal: FC<TeamEditModalProps> = (props) => {
         message: t('team.notification.create.success.message', { team: res.data.name }),
         icon: <Icon path={mdiCheck} size={1} />,
       })
-      setCreateTeam({ name: '', bio: '' })
+      setCreateTeam({ name: '', bio: '', country: '' })
       mutate()
       modalProps.onClose()
     } catch (e) {
@@ -86,6 +86,16 @@ export const TeamCreateModal: FC<TeamEditModalProps> = (props) => {
             maxRows={4}
             disabled={disabled}
             onChange={(event) => setCreateTeam({ ...createTeam, bio: event.currentTarget.value })}
+          />
+          <TextInput
+            label={t('team.label.country')}
+            type="text"
+            placeholder={t('team.placeholder.country')}
+            w="100%"
+            disabled={disabled}
+            value={createTeam?.country ?? ''}
+            maxLength={72}
+            onChange={(event) => setCreateTeam({ ...createTeam, country: event.currentTarget.value })}
           />
           <Button fullWidth variant="outline" onClick={onCreateTeam} disabled={disabled}>
             {t('team.button.create')}

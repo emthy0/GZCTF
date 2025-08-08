@@ -21,6 +21,11 @@ public class TeamInfoModel
     public string? Bio { get; set; }
 
     /// <summary>
+    /// Team country
+    /// </summary>
+    public string? Country { get; set; }
+
+    /// <summary>
     /// Avatar URL
     /// </summary>
     public string? Avatar { get; set; }
@@ -41,6 +46,7 @@ public class TeamInfoModel
             Id = team.Id,
             Name = team.Name,
             Bio = team.Bio,
+            Country = team.Country,
             Avatar = team.AvatarUrl,
             Locked = team.Locked,
             Members = includeMembers
@@ -63,6 +69,7 @@ public class TeamInfoModel
             Id = part.Team.Id,
             Name = part.Team.Name,
             Bio = part.Team.Bio,
+            Country = part.Team.Country,
             Avatar = part.Team.AvatarUrl,
             Locked = part.Team.Locked,
             Members = part.Members

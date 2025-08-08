@@ -55,6 +55,7 @@ export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
         ...activeTeam,
         name: teamInfo.name,
         bio: teamInfo.bio,
+        country: teamInfo.country,
         locked: teamInfo.locked ?? activeTeam.locked,
       })
       modalProps.onClose()
@@ -102,6 +103,17 @@ export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
           minRows={2}
           maxRows={4}
           onChange={(event) => setTeamInfo({ ...teamInfo, bio: event.target.value })}
+        />
+
+        <TextInput
+          label={t('team.label.country')}
+          type="text"
+          placeholder={t('team.placeholder.country')}
+          w="100%"
+          value={teamInfo.country ?? ''}
+          disabled={disabled}
+          maxLength={72}
+          onChange={(event) => setTeamInfo({ ...teamInfo, country: event.target.value })}
         />
 
         <Group justify="left">

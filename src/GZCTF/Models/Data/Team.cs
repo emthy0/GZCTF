@@ -24,6 +24,12 @@ public class Team
     public string? Bio { get; set; } = string.Empty;
 
     /// <summary>
+    /// Team country
+    /// </summary>
+    [MaxLength(72)]
+    public string? Country { get; set; }
+
+    /// <summary>
     /// Avatar hash
     /// </summary>
     [MaxLength(Limits.FileHashLength)]
@@ -55,12 +61,14 @@ public class Team
     {
         Name = string.IsNullOrEmpty(model.Name) ? Name : model.Name;
         Bio = model.Bio;
+        Country = model.Country;
     }
 
     internal void UpdateInfo(AdminTeamModel model)
     {
         Name = string.IsNullOrEmpty(model.Name) ? Name : model.Name;
         Bio = string.IsNullOrEmpty(model.Bio) ? Bio : model.Bio;
+        Country = string.IsNullOrEmpty(model.Country) ? Country : model.Country;
         Locked = model.Locked ?? Locked;
     }
 

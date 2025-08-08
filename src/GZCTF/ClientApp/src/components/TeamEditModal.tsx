@@ -360,6 +360,16 @@ export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
           maxRows={4}
           onChange={(event) => setTeamInfo({ ...teamInfo, bio: event.target.value })}
         />
+        <TextInput
+          label={t('team.label.country')}
+          type="text"
+          placeholder={teamInfo?.country ?? t('team.placeholder.country')}
+          w="100%"
+          value={teamInfo?.country ?? ''}
+          disabled={!isCaptain}
+          maxLength={72}
+          onChange={(event) => setTeamInfo({ ...teamInfo, country: event.target.value })}
+        />
         <Text size="sm">{t('team.label.members')}</Text>
         <ScrollArea h={140} offsetScrollbars>
           <Stack gap="xs">
