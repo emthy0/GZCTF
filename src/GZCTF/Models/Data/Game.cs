@@ -68,6 +68,11 @@ public class Game
     public bool WriteupRequired { get; set; }
 
     /// <summary>
+    /// Whether country is required for joining
+    /// </summary>
+    public bool RequireCountry { get; set; }
+
+    /// <summary>
     /// Game invitation code
     /// </summary>
     [MaxLength(Limits.InviteTokenLength)]
@@ -203,6 +208,7 @@ public class Game
         WriteupNote = model.WriteupNote;
         WriteupRequired = model.WriteupRequired;
         WriteupDeadline = model.WriteupDeadline;
+        RequireCountry = model.RequireCountry;
         BloodBonus = BloodBonus.FromValue(model.BloodBonusValue);
 
         return this;

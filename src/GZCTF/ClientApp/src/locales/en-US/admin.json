@@ -213,6 +213,10 @@
         "writeup_required": {
           "description": "Enable writeup submission",
           "label": "Writeup Required"
+        },
+        "require_country": {
+          "description": "Teams must have a country set to join this game",
+          "label": "Require Country"
         }
       },
       "notices": {

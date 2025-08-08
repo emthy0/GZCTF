@@ -139,6 +139,7 @@
     "score": "Score",
     "score_formatter": "{value} pts",
     "score_table": {
+      "all_countries": "All Countries",
       "all_teams": "All Teams",
       "rank_division": "Rank",
       "rank_total": "Overall",
@@ -168,6 +169,7 @@
     },
     "joined": "Registration successful",
     "left": "Successfully cancel",
+    "no_country": "Your team must have a country set to join this game",
     "no_division": "Please select the division",
     "no_invite_code": "Invitation code cannot be empty",
     "no_team": "Please select the team to participate with",

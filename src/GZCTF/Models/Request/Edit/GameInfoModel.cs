@@ -45,6 +45,11 @@ public class GameInfoModel
     public bool WriteupRequired { get; set; }
 
     /// <summary>
+    /// Require country for joining
+    /// </summary>
+    public bool RequireCountry { get; set; }
+
+    /// <summary>
     /// Game invitation code
     /// </summary>
     [MaxLength(Limits.InviteTokenLength,
@@ -134,6 +139,7 @@ public class GameInfoModel
             WriteupDeadline = game.WriteupDeadline,
             WriteupNote = game.WriteupNote,
             WriteupRequired = game.WriteupRequired,
+            RequireCountry = game.RequireCountry,
             BloodBonusValue = game.BloodBonus.Val
         };
 }

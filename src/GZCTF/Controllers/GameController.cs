@@ -162,6 +162,10 @@ public class GameController(
         if (team.Members.All(u => u.Id != user!.Id))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotMemberOfTeam)]));
 
+        // Check if country is required and team has no country
+        if (game.RequireCountry && string.IsNullOrWhiteSpace(team.Country))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_CountryRequired)]));
+
         // If already joined (not rejected)
         if (await participationRepository.CheckRepeatParticipation(user!, game, token))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_InOtherTeam)]));

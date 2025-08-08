@@ -346,6 +346,15 @@ const GameInfoEdit: FC = () => {
               )}
               onChange={(e) => game && setGame({ ...game, acceptWithoutReview: e.target.checked })}
             />
+            <Switch
+              disabled={disabled}
+              checked={game?.requireCountry ?? false}
+              label={SwitchLabel(
+                t('admin.content.games.info.require_country.label'),
+                t('admin.content.games.info.require_country.description')
+              )}
+              onChange={(e) => game && setGame({ ...game, requireCountry: e.target.checked })}
+            />
           </Stack>
         </Grid.Col>
         <Grid.Col span={3}>

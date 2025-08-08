@@ -911,6 +911,8 @@ export interface GameInfoModel {
   acceptWithoutReview?: boolean;
   /** Is writeup required */
   writeupRequired?: boolean;
+  /** Require country for joining */
+  requireCountry?: boolean;
   /**
    * Game invitation code
    * @maxLength 32
@@ -1337,6 +1339,8 @@ export interface DetailedGameInfoModel {
   inviteCodeRequired?: boolean;
   /** Whether writeup submission is required */
   writeupRequired?: boolean;
+  /** Whether country is required for joining */
+  requireCountry?: boolean;
   /** Game poster URL */
   poster?: string | null;
   /**
@@ -1442,6 +1446,8 @@ export interface ScoreboardItem {
   name?: string;
   /** Team Bio */
   bio?: string | null;
+  /** Team country */
+  country?: string | null;
   /** Division of participation */
   division?: string | null;
   /** Team avatar */

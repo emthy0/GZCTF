@@ -66,6 +66,17 @@ export const GameJoinModal: FC<GameJoinModalProps> = (props) => {
       return
     }
 
+    const selectedTeam = teams?.find(t => t.id!.toString() === team)
+    if (game?.requireCountry && (!selectedTeam?.country || selectedTeam.country.trim() === '')) {
+      showNotification({
+        color: 'orange',
+        message: t('game.notification.no_country'),
+        icon: <Icon path={mdiClose} size={1} />,
+      })
+      setDisabled(false)
+      return
+    }
+
     onSubmitJoin({
       teamId: parseInt(team),
       inviteCode: game?.inviteCodeRequired ? inviteCode : undefined,

@@ -32,7 +32,7 @@ const TableRow: FC<{
           >
             {item.name?.slice(0, 1) ?? 'T'}
           </Avatar>
-          <Input variant="unstyled" value={item.name} readOnly size="sm" />
+          <Input variant="unstyled" value={item.country ? `📍 ${item.country} - ${item.name}` : item.name} readOnly size="sm" />
         </Group>
       </Table.Td>
       <Table.Td className={cx(classes.mono, classes.left)}>
@@ -49,10 +49,21 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   const numId = parseInt(id ?? '-1')
   const [activePage, setPage] = useState(1)
   const [bloodBonus, setBloodBonus] = useState(BloodBonus.default)
+  const [countryFilter, setCountryFilter] = useState<string | null>('all')
 
   const { scoreboard } = useGameScoreboard(numId)
 
-  const filtered = division === 'all' ? scoreboard?.items : scoreboard?.items?.filter((s) => s.division === division)
+  let filtered = scoreboard?.items || []
+  
+  // Apply division filter
+  if (division !== 'all') {
+    filtered = filtered.filter((s) => s.division === division)
+  }
+  
+  // Apply country filter
+  if (countryFilter && countryFilter !== 'all') {
+    filtered = filtered.filter((s) => s.country === countryFilter)
+  }
 
   const base = (activePage - 1) * ITEM_COUNT_PER_PAGE
   const currentItems = filtered?.slice(base, base + ITEM_COUNT_PER_PAGE)
@@ -69,6 +80,9 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   }, [scoreboard])
 
   const bloodData = useBonusLabels(bloodBonus)
+  
+  // Get unique countries from scoreboard items
+  const countries = Array.from(new Set(scoreboard?.items?.map(item => item.country).filter(country => !!country))) as string[]
 
   return (
     <Paper shadow="xs" p="sm">
@@ -90,6 +104,24 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
               setDivision(div)
               setPage(1)
             }}
+          />
+        )}
+        {countries.length > 0 && (
+          <Select
+            placeholder={t('game.label.score_table.all_countries')}
+            data={[
+              { value: 'all', label: t('game.label.score_table.all_countries') },
+              ...countries.map((country) => ({
+                value: country,
+                label: `📍 ${country}`,
+              })),
+            ]}
+            value={countryFilter}
+            onChange={(country) => {
+              setCountryFilter(country)
+              setPage(1)
+            }}
+            clearable
           />
         )}
         <Box

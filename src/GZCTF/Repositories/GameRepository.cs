@@ -263,6 +263,7 @@ public class GameRepository(
                     Name = p.Team.Name,
                     Avatar = p.Team.AvatarUrl,
                     Division = p.Division,
+                    Country = p.Team.Country,
                     ParticipantId = p.Id,
                     TeamInfo = p.Team,
                     // pending fields: SolvedChallenges

@@ -121,6 +121,11 @@ public partial class ScoreboardItem
     public string? Division { get; set; }
 
     /// <summary>
+    /// Team country
+    /// </summary>
+    public string? Country { get; set; }
+
+    /// <summary>
     /// Team avatar
     /// </summary>
     public string? Avatar { get; set; } = string.Empty;
