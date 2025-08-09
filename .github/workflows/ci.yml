@@ -102,7 +102,7 @@ jobs:
           context: ./src/GZCTF
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms:  'linux/amd64,linux/arm64' 
+          platforms: ${{ env.RELEASE == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }} 
           push: true
 
   prune:
