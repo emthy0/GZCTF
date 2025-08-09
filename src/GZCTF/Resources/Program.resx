@@ -548,6 +548,9 @@
   <data name="Game_NotMemberOfTeam" xml:space="preserve">
     <value>You are not a member of the team</value>
   </data>
+  <data name="Game_CountryRequired" xml:space="preserve">
+    <value>Your team must have a country set to join this game</value>
+  </data>
   <data name="Game_NotParticipated" xml:space="preserve">
     <value>You have not participated in the game</value>
   </data>

@@ -27,6 +27,11 @@ public partial class ScoreboardModel
     public long BloodBonusValue { get; set; } = BloodBonus.DefaultValue;
 
     /// <summary>
+    /// Whether the scoreboard is frozen
+    /// </summary>
+    public bool IsFrozen { get; set; }
+
+    /// <summary>
     /// Timeline of the top ten
     /// </summary>
     public Dictionary<string, IEnumerable<TopTimeLine>> TimeLines { get; set; } = null!;
@@ -119,6 +124,11 @@ public partial class ScoreboardItem
     /// Division of participation
     /// </summary>
     public string? Division { get; set; }
+
+    /// <summary>
+    /// Team country
+    /// </summary>
+    public string? Country { get; set; }
 
     /// <summary>
     /// Team avatar

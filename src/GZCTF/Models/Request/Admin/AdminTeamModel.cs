@@ -22,6 +22,12 @@ public class AdminTeamModel
     public string? Bio { get; set; }
 
     /// <summary>
+    /// Team country
+    /// </summary>
+    [MaxLength(72)]
+    public string? Country { get; set; }
+
+    /// <summary>
     /// Is locked
     /// </summary>
     public bool? Locked { get; set; }

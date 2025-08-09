@@ -1,4 +1,5 @@
 import {
+  Alert,
   alpha,
   Avatar,
   Box,
@@ -18,7 +19,7 @@ import {
   useMantineTheme,
 } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
-import { mdiAccountGroup, mdiMagnify } from '@mdi/js'
+import { mdiAccountGroup, mdiMagnify, mdiSnowflake } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import cx from 'clsx'
 import dayjs from 'dayjs'
@@ -27,6 +28,8 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { ScoreboardItemModal } from '@Components/ScoreboardItemModal'
 import { useLanguage } from '@Utils/I18n'
+import { RequireRole } from '@Components/WithRole'
+import { useUserRole } from '@Hooks/useUser'
 import {
   BloodBonus,
   BloodsTypes,
@@ -36,7 +39,7 @@ import {
   PartialIconProps,
 } from '@Utils/Shared'
 import { useGameScoreboard } from '@Hooks/useGame'
-import { ChallengeInfo, ChallengeCategory, ScoreboardItem, SubmissionType } from '@Api'
+import { ChallengeInfo, ChallengeCategory, ScoreboardItem, SubmissionType, Role } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import classes from '@Styles/ScoreboardTable.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
@@ -165,7 +168,7 @@ const TableRow: FC<{
           <Stack gap={0} h="2.5rem" justify="center" w={Widths[2] - 45}>
             <Input
               variant="unstyled"
-              value={item.name}
+              value={item.country ? `📍 ${item.country} - ${item.name}` : item.name}
               readOnly
               size="sm"
               __vars={{
@@ -176,11 +179,13 @@ const TableRow: FC<{
                 input: cx(classes.pointer, classes.input),
               }}
             />
-            {!!item.division && (
-              <Text size="xs" c="dimmed" ta="start" truncate className={classes.text}>
-                {item.division}
-              </Text>
-            )}
+            <Group gap={4} w="100%">
+              {!!item.division && (
+                <Text size="xs" c="dimmed" ta="start" truncate className={classes.text}>
+                  {item.division}
+                </Text>
+              )}
+            </Group>
           </Stack>
         </Group>
       </Table.Td>
@@ -247,32 +252,42 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
 
   const [keyword, setKeyword] = useState('')
   const [debouncedKeyword] = useDebouncedValue(keyword, 400)
+  const [countryFilter, setCountryFilter] = useState<string | null>('all')
 
   const [filteredList, setFilteredList] = useState<ScoreboardItem[]>([])
 
   const { scoreboard } = useGameScoreboard(numId)
+  const { role } = useUserRole()
 
   useEffect(() => {
     setPage(1)
     setDivision('all')
     setKeyword('')
+    setCountryFilter('all')
   }, [id])
 
   useEffect(() => {
     if (!scoreboard?.items) return
 
+    let filtered = scoreboard.items
+
+    // Apply keyword filter
     if (!!debouncedKeyword && debouncedKeyword.length > 0) {
-      setFilteredList(scoreboard.items.filter((s) => s.name?.toLowerCase().includes(debouncedKeyword.toLowerCase())))
-      return
+      filtered = filtered.filter((s) => s.name?.toLowerCase().includes(debouncedKeyword.toLowerCase()))
     }
 
+    // Apply division filter
     if (division !== 'all') {
-      setFilteredList(scoreboard.items.filter((s) => s.division === division))
-      return
+      filtered = filtered.filter((s) => s.division === division)
     }
 
-    setFilteredList(scoreboard.items)
-  }, [scoreboard, debouncedKeyword, division])
+    // Apply country filter
+    if (countryFilter && countryFilter !== 'all') {
+      filtered = filtered.filter((s) => s.country === countryFilter)
+    }
+
+    setFilteredList(filtered)
+  }, [scoreboard, debouncedKeyword, division, countryFilter])
 
   const base = (activePage - 1) * ITEM_COUNT_PER_PAGE
   const currentItems = filteredList?.slice(base, base + ITEM_COUNT_PER_PAGE)
@@ -290,10 +305,25 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
 
   const bloodData = useBonusLabels(bloodBonus)
   const multiTimeline = scoreboard?.timeLines && Object.keys(scoreboard.timeLines).length > 1
+  
+  // Get unique countries from scoreboard items
+  const countries = Array.from(new Set(scoreboard?.items?.map(item => item.country).filter(country => !!country))) as string[]
 
   return (
     <Paper shadow="md" p="md">
       <Stack gap="xs">
+        {scoreboard?.isFrozen && (
+          <Alert 
+            color="blue" 
+            title={t('game.label.scoreboard_frozen.title')} 
+            icon={<Icon path={mdiSnowflake} size={1} />}
+          >
+            {RequireRole(Role.Monitor, role) 
+              ? t('game.label.scoreboard_frozen.description_admin')
+              : t('game.label.scoreboard_frozen.description')
+            }
+          </Alert>
+        )}
         <Grid>
           <Grid.Col span={3}>
             <Select
@@ -316,7 +346,26 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
               leftSection={<Icon path={mdiAccountGroup} size={1} />}
             />
           </Grid.Col>
-          <Grid.Col span={6} />
+          <Grid.Col span={3}>
+            <Select
+              placeholder={t('game.label.score_table.all_countries')}
+              data={[
+                { value: 'all', label: t('game.label.score_table.all_countries') },
+                ...countries.map((country) => ({
+                  value: country,
+                  label: `📍 ${country}`,
+                })),
+              ]}
+              value={countryFilter}
+              onChange={(country) => {
+                setCountryFilter(country)
+                setPage(1)
+              }}
+              clearable
+              searchable
+            />
+          </Grid.Col>
+          <Grid.Col span={3} />
           <Grid.Col span={3}>
             <TextInput
               placeholder={t('game.placeholder.search_team')}

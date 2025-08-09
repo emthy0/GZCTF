@@ -32,7 +32,7 @@ public class TeamRepository(AppDbContext context) : RepositoryBase(context), ITe
         if (model.Name is null)
             throw new ArgumentNullException(nameof(model.Name).ToLower());
 
-        Team team = new() { Name = model.Name, Captain = user, Bio = model.Bio };
+        Team team = new() { Name = model.Name, Captain = user, Bio = model.Bio, Country = model.Country };
 
         team.Members.Add(user);
 

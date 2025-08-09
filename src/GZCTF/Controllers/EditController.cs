@@ -229,6 +229,37 @@ public class EditController(
     }
 
     /// <summary>
+    /// Toggle Game Scoreboard Freeze
+    /// </summary>
+    /// <remarks>
+    /// Toggling scoreboard freeze requires administrator privileges
+    /// </remarks>
+    /// <param name="id"></param>
+    /// <param name="freeze"></param>
+    /// <param name="token"></param>
+    /// <response code="200">Successfully toggled scoreboard freeze</response>
+    [HttpPatch("Games/{id:int}/ScoreboardFreeze")]
+    [ProducesResponseType(typeof(GameInfoModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ToggleScoreboardFreeze([FromRoute] int id, [FromBody] bool freeze,
+        CancellationToken token)
+    {
+        var game = await gameRepository.GetGameById(id, token);
+
+        if (game is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Game_NotFound)],
+                StatusCodes.Status404NotFound));
+
+        game.ScoreboardFreeze = freeze;
+        await gameRepository.UpdateGame(game, token);
+        
+        // Clear scoreboard cache when freeze status changes
+        await cacheHelper.FlushScoreboardCache(id, token);
+
+        return Ok(GameInfoModel.FromGame(game));
+    }
+
+    /// <summary>
     /// Delete Game
     /// </summary>
     /// <remarks>

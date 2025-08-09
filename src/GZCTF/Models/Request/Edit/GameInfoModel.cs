@@ -45,6 +45,16 @@ public class GameInfoModel
     public bool WriteupRequired { get; set; }
 
     /// <summary>
+    /// Require country for joining
+    /// </summary>
+    public bool RequireCountry { get; set; }
+
+    /// <summary>
+    /// Whether scoreboard is frozen (no updates visible to non-admin users)
+    /// </summary>
+    public bool ScoreboardFreeze { get; set; }
+
+    /// <summary>
     /// Game invitation code
     /// </summary>
     [MaxLength(Limits.InviteTokenLength,
@@ -134,6 +144,8 @@ public class GameInfoModel
             WriteupDeadline = game.WriteupDeadline,
             WriteupNote = game.WriteupNote,
             WriteupRequired = game.WriteupRequired,
+            RequireCountry = game.RequireCountry,
+            ScoreboardFreeze = game.ScoreboardFreeze,
             BloodBonusValue = game.BloodBonus.Val
         };
 }

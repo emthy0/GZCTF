@@ -155,6 +155,11 @@ const ParticipationItem: FC<ParticipationItemProps> = (props) => {
                 <Text truncate size="sm" c="dimmed">
                   {!participation.team?.bio ? t('admin.placeholder.games.participation.bio') : participation.team.bio}
                 </Text>
+                {participation.team?.country && (
+                  <Text truncate size="xs" c="teal" fw={500}>
+                    📍 {participation.team.country}
+                  </Text>
+                )}
               </Box>
             </Group>
             <Group wrap="nowrap" justify="space-between" w="35%" miw="370px">

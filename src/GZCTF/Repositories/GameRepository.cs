@@ -138,6 +138,13 @@ public class GameRepository(
             return GenScoreboard(game, token);
         }, token);
 
+    public Task<ScoreboardModel> GetFrozenScoreboard(Game game, CancellationToken token = default) =>
+        cache.GetOrCreateAsync(logger, CacheKey.FrozenScoreBoard(game.Id), entry =>
+        {
+            entry.SlidingExpiration = TimeSpan.FromDays(7);
+            return GenFrozenScoreboard(game, token);
+        }, token);
+
     public async Task<ScoreboardModel> GetScoreboardWithMembers(Game game, CancellationToken token = default)
     {
         // In most cases, we can get the scoreboard from the cache
@@ -263,6 +270,7 @@ public class GameRepository(
                     Name = p.Team.Name,
                     Avatar = p.Team.AvatarUrl,
                     Division = p.Division,
+                    Country = p.Team.Country,
                     ParticipantId = p.Id,
                     TeamInfo = p.Team,
                     // pending fields: SolvedChallenges
@@ -454,7 +462,20 @@ public class GameRepository(
             Challenges = challengesDict,
             Items = items,
             TimeLines = timelines,
-            BloodBonusValue = game.BloodBonus.Val
+            BloodBonusValue = game.BloodBonus.Val,
+            IsFrozen = game.ScoreboardFreeze
         };
+    }
+
+    public async Task<ScoreboardModel> GenFrozenScoreboard(Game game, CancellationToken token = default)
+    {
+        // Return a frozen scoreboard that shows current state but indicates it's frozen
+        // This provides a snapshot experience while maintaining simplicity
+        var scoreboard = await GenScoreboard(game, token);
+        
+        // Ensure it's marked as frozen (this is redundant but explicit)
+        scoreboard.IsFrozen = true;
+        
+        return scoreboard;
     }
 }

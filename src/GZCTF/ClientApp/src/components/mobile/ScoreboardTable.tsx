@@ -1,4 +1,6 @@
-import { Avatar, Box, Group, Input, Pagination, Paper, Select, Stack, Table, useMantineTheme } from '@mantine/core'
+import { Alert, Avatar, Box, Group, Input, Pagination, Paper, Select, Stack, Table, Text, useMantineTheme } from '@mantine/core'
+import { mdiSnowflake } from '@mdi/js'
+import { Icon } from '@mdi/react'
 import cx from 'clsx'
 import React, { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +9,9 @@ import { ScoreboardProps } from '@Components/ScoreboardTable'
 import { MobileScoreboardItemModal } from '@Components/mobile/ScoreboardItemModal'
 import { BloodBonus, useBonusLabels } from '@Utils/Shared'
 import { useGameScoreboard } from '@Hooks/useGame'
-import { ScoreboardItem } from '@Api'
+import { RequireRole } from '@Components/WithRole'
+import { useUserRole } from '@Hooks/useUser'
+import { ScoreboardItem, Role } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import classes from '@Styles/ScoreboardTable.module.css'
 
@@ -32,7 +36,7 @@ const TableRow: FC<{
           >
             {item.name?.slice(0, 1) ?? 'T'}
           </Avatar>
-          <Input variant="unstyled" value={item.name} readOnly size="sm" />
+          <Input variant="unstyled" value={item.country ? `📍 ${item.country} - ${item.name}` : item.name} readOnly size="sm" />
         </Group>
       </Table.Td>
       <Table.Td className={cx(classes.mono, classes.left)}>
@@ -49,10 +53,22 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   const numId = parseInt(id ?? '-1')
   const [activePage, setPage] = useState(1)
   const [bloodBonus, setBloodBonus] = useState(BloodBonus.default)
+  const [countryFilter, setCountryFilter] = useState<string | null>('all')
 
   const { scoreboard } = useGameScoreboard(numId)
+  const { role } = useUserRole()
 
-  const filtered = division === 'all' ? scoreboard?.items : scoreboard?.items?.filter((s) => s.division === division)
+  let filtered = scoreboard?.items || []
+  
+  // Apply division filter
+  if (division !== 'all') {
+    filtered = filtered.filter((s) => s.division === division)
+  }
+  
+  // Apply country filter
+  if (countryFilter && countryFilter !== 'all') {
+    filtered = filtered.filter((s) => s.country === countryFilter)
+  }
 
   const base = (activePage - 1) * ITEM_COUNT_PER_PAGE
   const currentItems = filtered?.slice(base, base + ITEM_COUNT_PER_PAGE)
@@ -69,10 +85,25 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
   }, [scoreboard])
 
   const bloodData = useBonusLabels(bloodBonus)
+  
+  // Get unique countries from scoreboard items
+  const countries = Array.from(new Set(scoreboard?.items?.map(item => item.country).filter(country => !!country))) as string[]
 
   return (
     <Paper shadow="xs" p="sm">
       <Stack gap="xs">
+        {scoreboard?.isFrozen && (
+          <Alert 
+            color="blue" 
+            title={t('game.label.scoreboard_frozen.title')} 
+            icon={<Icon path={mdiSnowflake} size={1} />}
+          >
+            {RequireRole(Role.Monitor, role) 
+              ? t('game.label.scoreboard_frozen.description_admin')
+              : t('game.label.scoreboard_frozen.description')
+            }
+          </Alert>
+        )}
         {scoreboard?.timeLines && Object.keys(scoreboard.timeLines).length > 1 && (
           <Select
             defaultValue="all"
@@ -90,6 +121,24 @@ export const MobileScoreboardTable: FC<ScoreboardProps> = ({ division, setDivisi
               setDivision(div)
               setPage(1)
             }}
+          />
+        )}
+        {countries.length > 0 && (
+          <Select
+            placeholder={t('game.label.score_table.all_countries')}
+            data={[
+              { value: 'all', label: t('game.label.score_table.all_countries') },
+              ...countries.map((country) => ({
+                value: country,
+                label: `📍 ${country}`,
+              })),
+            ]}
+            value={countryFilter}
+            onChange={(country) => {
+              setCountryFilter(country)
+              setPage(1)
+            }}
+            clearable
           />
         )}
         <Box

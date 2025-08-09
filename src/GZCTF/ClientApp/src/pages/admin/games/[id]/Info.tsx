@@ -346,6 +346,15 @@ const GameInfoEdit: FC = () => {
               )}
               onChange={(e) => game && setGame({ ...game, acceptWithoutReview: e.target.checked })}
             />
+            <Switch
+              disabled={disabled}
+              checked={game?.requireCountry ?? false}
+              label={SwitchLabel(
+                t('admin.content.games.info.require_country.label'),
+                t('admin.content.games.info.require_country.description')
+              )}
+              onChange={(e) => game && setGame({ ...game, requireCountry: e.target.checked })}
+            />
           </Stack>
         </Grid.Col>
         <Grid.Col span={3}>
@@ -367,6 +376,15 @@ const GameInfoEdit: FC = () => {
                 t('admin.content.games.info.practice_mode.description')
               )}
               onChange={(e) => game && setGame({ ...game, practiceMode: e.target.checked })}
+            />
+            <Switch
+              disabled={disabled}
+              checked={game?.scoreboardFreeze ?? false}
+              label={SwitchLabel(
+                t('admin.content.games.info.scoreboard_freeze.label'),
+                t('admin.content.games.info.scoreboard_freeze.description')
+              )}
+              onChange={(e) => game && setGame({ ...game, scoreboardFreeze: e.target.checked })}
             />
           </Stack>
         </Grid.Col>

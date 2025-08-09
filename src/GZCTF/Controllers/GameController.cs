@@ -16,6 +16,7 @@ using GZCTF.Services.Config;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 
@@ -162,6 +163,10 @@ public class GameController(
         if (team.Members.All(u => u.Id != user!.Id))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotMemberOfTeam)]));
 
+        // Check if country is required and team has no country
+        if (game.RequireCountry && string.IsNullOrWhiteSpace(team.Country))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_CountryRequired)]));
+
         // If already joined (not rejected)
         if (await participationRepository.CheckRepeatParticipation(user!, game, token))
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_InOtherTeam)]));
@@ -280,6 +285,25 @@ public class GameController(
         if (DateTimeOffset.UtcNow < game.StartTimeUtc)
             return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Game_NotStarted)]));
 
+        // Check if scoreboard is frozen and user doesn't have admin/monitor privileges
+        var hasMonitorPrivilege = false;
+        try
+        {
+            hasMonitorPrivilege = await HasPrivilege(Role.Monitor);
+        }
+        catch
+        {
+            // If privilege check fails (e.g., anonymous user), assume no privilege
+            hasMonitorPrivilege = false;
+        }
+
+        if (game.ScoreboardFreeze && !hasMonitorPrivilege)
+        {
+            // Return frozen scoreboard for regular users and anonymous users
+            return Ok(await gameRepository.GetFrozenScoreboard(game, token));
+        }
+
+        // Return live scoreboard (for admins/monitors or when not frozen)
         return Ok(await gameRepository.GetScoreboard(game, token));
     }
 
@@ -1240,6 +1264,22 @@ public class GameController(
         res.Challenge = challenge;
 
         return res;
+    }
+
+    /// <summary>
+    /// Checks if the current user has the specified privilege
+    /// </summary>
+    /// <param name="privilege">The privilege to check against</param>
+    /// <returns></returns>
+    async Task<bool> HasPrivilege(Role privilege)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is null || !Guid.TryParse(userId, out var id))
+            return false;
+
+        var dbContext = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+        return await dbContext.Users.AnyAsync(i => i.Id == id && i.Role >= privilege);
     }
 
     class ContextInfo

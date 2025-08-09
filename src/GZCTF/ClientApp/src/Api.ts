@@ -527,6 +527,8 @@ export interface TeamInfoModel {
   name?: string | null;
   /** Team bio */
   bio?: string | null;
+  /** Team country */
+  country?: string | null;
   /** Avatar URL */
   avatar?: string | null;
   /** Is locked */
@@ -564,6 +566,11 @@ export interface AdminTeamModel {
    * @maxLength 72
    */
   bio?: string | null;
+  /**
+   * Team country
+   * @maxLength 72
+   */
+  country?: string | null;
   /** Is locked */
   locked?: boolean | null;
 }
@@ -904,6 +911,8 @@ export interface GameInfoModel {
   acceptWithoutReview?: boolean;
   /** Is writeup required */
   writeupRequired?: boolean;
+  /** Require country for joining */
+  requireCountry?: boolean;
   /**
    * Game invitation code
    * @maxLength 32
@@ -1330,6 +1339,8 @@ export interface DetailedGameInfoModel {
   inviteCodeRequired?: boolean;
   /** Whether writeup submission is required */
   writeupRequired?: boolean;
+  /** Whether country is required for joining */
+  requireCountry?: boolean;
   /** Game poster URL */
   poster?: string | null;
   /**
@@ -1435,6 +1446,8 @@ export interface ScoreboardItem {
   name?: string;
   /** Team Bio */
   bio?: string | null;
+  /** Team country */
+  country?: string | null;
   /** Division of participation */
   division?: string | null;
   /** Team avatar */
@@ -1901,6 +1914,11 @@ export interface TeamUpdateModel {
    * @maxLength 72
    */
   bio?: string | null;
+  /**
+   * Team country
+   * @maxLength 72
+   */
+  country?: string | null;
 }
 
 export interface TeamTransferModel {

@@ -45,6 +45,7 @@
   },
   "label": {
     "bio": "Biography",
+    "country": "Country",
     "invite_code": "Invitation Code",
     "kick": "Kick out",
     "members": "Members",
@@ -85,7 +86,8 @@
     "updated": "Team information has been updated"
   },
   "placeholder": {
-    "bio": "This team is lazy, nothing written"
+    "bio": "This team is lazy, nothing written",
+    "country": "United States"
   },
   "title": {
     "index": "Team management"
