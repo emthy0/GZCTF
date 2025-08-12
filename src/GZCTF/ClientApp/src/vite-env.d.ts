@@ -16,3 +16,8 @@ declare module 'virtual:i18n-manifest' {
 
   export default manifest
 }
+
+declare module '*.json' {
+  const value: any
+  export default value
+}

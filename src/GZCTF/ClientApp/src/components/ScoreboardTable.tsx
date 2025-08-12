@@ -30,6 +30,7 @@ import { ScoreboardItemModal } from '@Components/ScoreboardItemModal'
 import { useLanguage } from '@Utils/I18n'
 import { RequireRole } from '@Components/WithRole'
 import { useUserRole } from '@Hooks/useUser'
+import { renderCountryFlag, getCountryByName } from '../utils/CountryHelper'
 import {
   BloodBonus,
   BloodsTypes,
@@ -166,19 +167,23 @@ const TableRow: FC<{
             {item.name?.slice(0, 1) ?? 'T'}
           </Avatar>
           <Stack gap={0} h="2.5rem" justify="center" w={Widths[2] - 45}>
-            <Input
-              variant="unstyled"
-              value={item.country ? `📍 ${item.country} - ${item.name}` : item.name}
-              readOnly
-              size="sm"
-              __vars={{
-                '--input-height': 'var(--mantine-line-height-sm)',
-              }}
-              classNames={{
-                wrapper: cx(classes.pointer, classes.wapper),
-                input: cx(classes.pointer, classes.input),
-              }}
-            />
+            <Group gap={4} w="100%" wrap="nowrap">
+              {item.country && renderCountryFlag(item.country)}
+              <Input
+                variant="unstyled"
+                value={item.name}
+                readOnly
+                size="sm"
+                __vars={{
+                  '--input-height': 'var(--mantine-line-height-sm)',
+                }}
+                classNames={{
+                  wrapper: cx(classes.pointer, classes.wapper),
+                  input: cx(classes.pointer, classes.input),
+                }}
+                style={{ flexGrow: 1 }}
+              />
+            </Group>
             <Group gap={4} w="100%">
               {!!item.division && (
                 <Text size="xs" c="dimmed" ta="start" truncate className={classes.text}>
@@ -307,7 +312,9 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
   const multiTimeline = scoreboard?.timeLines && Object.keys(scoreboard.timeLines).length > 1
   
   // Get unique countries from scoreboard items
-  const countries = Array.from(new Set(scoreboard?.items?.map(item => item.country).filter(country => !!country))) as string[]
+  const countries = scoreboard?.items 
+    ? Array.from(new Set(scoreboard.items.map(item => item.country).filter(country => !!country))) as string[]
+    : []
 
   return (
     <Paper shadow="md" p="md">
@@ -351,7 +358,7 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
               placeholder={t('game.label.score_table.all_countries')}
               data={[
                 { value: 'all', label: t('game.label.score_table.all_countries') },
-                ...countries.map((country) => ({
+                ...(countries || []).map((country) => ({
                   value: country,
                   label: `📍 ${country}`,
                 })),
@@ -363,6 +370,11 @@ export const ScoreboardTable: FC<ScoreboardProps> = ({ division, setDivision }) 
               }}
               clearable
               searchable
+              // filter={(value, item) => {
+              //   if (!item) return false
+              //   return item.label.toLowerCase().includes(value.toLowerCase().trim()) || 
+              //          (item.value !== 'all' && item.value.toLowerCase().includes(value.toLowerCase().trim()))
+              // }}
             />
           </Grid.Col>
           <Grid.Col span={3} />

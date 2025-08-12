@@ -484,7 +484,7 @@
     },
     "users": {
       "real_name": "Пусто",
-      "search": "Поиск по ID/username/email/student ID/real name",
+      "search": "Поиск по ID/username/email/student ID/full name",
       "student_id": "00000000"
     }
   },
