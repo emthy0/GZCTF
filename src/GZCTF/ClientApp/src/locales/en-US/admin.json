@@ -492,7 +492,7 @@
     },
     "users": {
       "real_name": "Empty",
-      "search": "Search by ID/username/email/student ID/real name",
+      "search": "Search by ID/username/email/student ID/full name",
       "student_id": "00000000"
     }
   },

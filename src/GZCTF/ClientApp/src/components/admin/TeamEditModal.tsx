@@ -20,6 +20,7 @@ import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { showErrorMsg } from '@Utils/Shared'
 import api, { AdminTeamModel, TeamInfoModel } from '@Api'
+import { CountryAutocomplete } from '../CountryAutocomplete'
 
 interface TeamEditModalProps extends ModalProps {
   team: TeamInfoModel
@@ -105,15 +106,14 @@ export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
           onChange={(event) => setTeamInfo({ ...teamInfo, bio: event.target.value })}
         />
 
-        <TextInput
+        <CountryAutocomplete
           label={t('team.label.country')}
-          type="text"
           placeholder={t('team.placeholder.country')}
           w="100%"
           value={teamInfo.country ?? ''}
           disabled={disabled}
           maxLength={72}
-          onChange={(event) => setTeamInfo({ ...teamInfo, country: event.target.value })}
+          onChange={(value) => setTeamInfo({ ...teamInfo, country: value })}
         />
 
         <Group justify="left">

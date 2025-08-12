@@ -17,6 +17,7 @@ import { FC, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { showErrorMsg } from '@Utils/Shared'
 import api, { TeamUpdateModel } from '@Api'
+import { CountryAutocomplete } from './CountryAutocomplete'
 
 interface TeamEditModalProps extends ModalProps {
   disallowCreate: boolean
@@ -87,15 +88,14 @@ export const TeamCreateModal: FC<TeamEditModalProps> = (props) => {
             disabled={disabled}
             onChange={(event) => setCreateTeam({ ...createTeam, bio: event.currentTarget.value })}
           />
-          <TextInput
+          <CountryAutocomplete
             label={t('team.label.country')}
-            type="text"
             placeholder={t('team.placeholder.country')}
             w="100%"
             disabled={disabled}
             value={createTeam?.country ?? ''}
             maxLength={72}
-            onChange={(event) => setCreateTeam({ ...createTeam, country: event.currentTarget.value })}
+            onChange={(value) => setCreateTeam({ ...createTeam, country: value })}
           />
           <Button fullWidth variant="outline" onClick={onCreateTeam} disabled={disabled}>
             {t('team.button.create')}

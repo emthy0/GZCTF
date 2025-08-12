@@ -30,6 +30,7 @@ import { showErrorMsg, tryGetErrorMsg } from '@Utils/Shared'
 import { IMAGE_MIME_TYPES } from '@Utils/Shared'
 import api, { TeamInfoModel, TeamUserInfoModel } from '@Api'
 import misc from '@Styles/Misc.module.css'
+import { CountryAutocomplete } from './CountryAutocomplete'
 
 interface TeamEditModalProps extends ModalProps {
   team: TeamInfoModel | null
@@ -360,15 +361,14 @@ export const TeamEditModal: FC<TeamEditModalProps> = (props) => {
           maxRows={4}
           onChange={(event) => setTeamInfo({ ...teamInfo, bio: event.target.value })}
         />
-        <TextInput
+        <CountryAutocomplete
           label={t('team.label.country')}
-          type="text"
-          placeholder={teamInfo?.country ?? t('team.placeholder.country')}
+          placeholder={t('team.placeholder.country')}
           w="100%"
           value={teamInfo?.country ?? ''}
           disabled={!isCaptain}
           maxLength={72}
-          onChange={(event) => setTeamInfo({ ...teamInfo, country: event.target.value })}
+          onChange={(value) => setTeamInfo({ ...teamInfo, country: value })}
         />
         <Text size="sm">{t('team.label.members')}</Text>
         <ScrollArea h={140} offsetScrollbars>
