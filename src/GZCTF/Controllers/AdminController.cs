@@ -209,6 +209,34 @@ public class AdminController(
             .ToResponse(await userManager.Users.CountAsync(token)));
 
     /// <summary>
+    /// Create single user
+    /// </summary>
+    /// <remarks>
+    /// Use this API to create a single user, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Successfully created</response>
+    /// <response code="400">User validation failed</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    [HttpPost("User")]
+    [ProducesResponseType(typeof(UserInfoModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateUser([FromBody] UserCreateModel model, CancellationToken token = default)
+    {
+        var currentUser = await userManager.GetUserAsync(User);
+        var userInfo = model.ToUserInfo();
+        var result = await userManager.CreateAsync(userInfo, model.Password);
+
+        if (!result.Succeeded)
+            return HandleIdentityError(result.Errors);
+
+        logger.Log($"User {userInfo.UserName} created by admin", 
+            currentUser, TaskStatus.Success);
+
+        return Ok(UserInfoModel.FromUserInfo(userInfo));
+    }
+
+    /// <summary>
     /// Add users in batch
     /// </summary>
     /// <remarks>
@@ -352,6 +380,46 @@ public class AdminController(
             .ToResponse());
 
     /// <summary>
+    /// Create team
+    /// </summary>
+    /// <remarks>
+    /// Use this API to create a team, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Successfully created</response>
+    /// <response code="400">Team creation failed</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    /// <response code="404">Captain not found</response>
+    [HttpPost("Team")]
+    [ProducesResponseType(typeof(TeamInfoModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateTeam([FromBody] AdminCreateTeamModel model, CancellationToken token = default)
+    {
+        var currentUser = await userManager.GetUserAsync(User);
+        
+        if (string.IsNullOrEmpty(model.Name))
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_NameEmpty)]));
+
+        var captain = await userManager.FindByIdAsync(model.CaptainId.ToString());
+        if (captain is null)
+            return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Team_NewCaptainNotFound)]));
+
+        var teamModel = new TeamUpdateModel 
+        { 
+            Name = model.Name, 
+            Bio = model.Bio,
+            Country = model.Country
+        };
+
+        var team = await teamRepository.CreateTeam(teamModel, captain, token);
+
+        logger.Log(StaticLocalizer[nameof(Resources.Program.Team_Created), team.Name], currentUser, TaskStatus.Success);
+
+        return Ok(TeamInfoModel.FromTeam(team));
+    }
+
+    /// <summary>
     /// Modify team information
     /// </summary>
     /// <remarks>
@@ -376,6 +444,108 @@ public class AdminController(
         await teamRepository.SaveAsync(token);
 
         return Ok();
+    }
+
+    /// <summary>
+    /// Assign user to team
+    /// </summary>
+    /// <remarks>
+    /// Use this API to assign a user to a team, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Successfully assigned</response>
+    /// <response code="400">Assignment failed</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    /// <response code="404">User or team not found</response>
+    [HttpPost("Teams/{teamId:int}/Users/{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignUserToTeam([FromRoute] int teamId, [FromRoute] Guid userId, CancellationToken token = default)
+    {
+        var currentUser = await userManager.GetUserAsync(User);
+        var trans = await teamRepository.BeginTransactionAsync(token);
+
+        try
+        {
+            var team = await teamRepository.GetTeamById(teamId, token);
+            if (team is null)
+                return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Team_NotFound)]));
+
+            var user = await userManager.FindByIdAsync(userId.ToString());
+            if (user is null)
+                return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Admin_UserNotFound)]));
+
+            if (team.Members.Any(m => m.Id == user.Id))
+                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.User_AlreadyInTeam)]));
+
+            team.Members.Add(user);
+            await teamRepository.SaveAsync(token);
+            await trans.CommitAsync(token);
+
+            logger.Log($"User {user.UserName ?? "null"} added to team {team.Name} by admin", 
+                currentUser, TaskStatus.Success);
+
+            return Ok();
+        }
+        catch
+        {
+            await trans.RollbackAsync(token);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Remove user from team
+    /// </summary>
+    /// <remarks>
+    /// Use this API to remove a user from a team, requires Admin permission
+    /// </remarks>
+    /// <response code="200">Successfully removed</response>
+    /// <response code="400">Removal failed</response>
+    /// <response code="401">Unauthorized user</response>
+    /// <response code="403">Forbidden</response>
+    /// <response code="404">User or team not found</response>
+    [HttpDelete("Teams/{teamId:int}/Users/{userId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(RequestResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveUserFromTeam([FromRoute] int teamId, [FromRoute] Guid userId, CancellationToken token = default)
+    {
+        var currentUser = await userManager.GetUserAsync(User);
+        var trans = await teamRepository.BeginTransactionAsync(token);
+
+        try
+        {
+            var team = await teamRepository.GetTeamById(teamId, token);
+            if (team is null)
+                return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Team_NotFound)]));
+
+            var user = await userManager.FindByIdAsync(userId.ToString());
+            if (user is null)
+                return NotFound(new RequestResponse(localizer[nameof(Resources.Program.Admin_UserNotFound)]));
+
+            if (team.CaptainId == user.Id)
+                return BadRequest(new RequestResponse("Cannot remove team captain"));
+
+            if (!team.Members.Any(m => m.Id == user.Id))
+                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.User_NotInTeam)]));
+
+            team.Members.Remove(user);
+            await participationRepository.RemoveUserParticipations(user, team, token);
+            await teamRepository.SaveAsync(token);
+            await trans.CommitAsync(token);
+
+            logger.Log(StaticLocalizer[nameof(Resources.Program.Team_MemberRemoved), team.Name, user.UserName ?? "null"], 
+                currentUser, TaskStatus.Success);
+
+            return Ok();
+        }
+        catch
+        {
+            await trans.RollbackAsync(token);
+            throw;
+        }
     }
 
     /// <summary>

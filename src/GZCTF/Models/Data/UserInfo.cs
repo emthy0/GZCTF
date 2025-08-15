@@ -69,6 +69,16 @@ public partial class UserInfo : IdentityUser<Guid>
     /// </summary>
     public bool ExerciseVisible { get; set; } = true;
 
+    /// <summary>
+    /// Allow user to create teams
+    /// </summary>
+    public bool CanCreateTeam { get; set; } = true;
+
+    /// <summary>
+    /// Allow user to join teams
+    /// </summary>
+    public bool CanJoinTeam { get; set; } = true;
+
     [NotMapped]
     [MemoryPackIgnore]
     public string? AvatarUrl => AvatarHash is null ? null : $"/assets/{AvatarHash}/avatar";
@@ -98,6 +108,8 @@ public partial class UserInfo : IdentityUser<Guid>
         RealName = model.RealName ?? RealName;
         PhoneNumber = model.Phone ?? PhoneNumber;
         EmailConfirmed = model.EmailConfirmed ?? EmailConfirmed;
+        CanCreateTeam = model.CanCreateTeam ?? CanCreateTeam;
+        CanJoinTeam = model.CanJoinTeam ?? CanJoinTeam;
     }
 
     /// <summary>

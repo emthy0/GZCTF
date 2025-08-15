@@ -47,6 +47,8 @@ export const useConfig = () => {
       defaultLifetime: 120,
       extensionDuration: 120,
       renewalWindow: 10,
+      allowTeamCreation: true,
+      allowTeamJoining: true,
     },
   })
 

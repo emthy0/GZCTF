@@ -258,6 +258,40 @@ const Configs: FC = () => {
           </Grid>
         </Stack>
         <Stack gap="sm">
+          <Title order={2}>{t('admin.content.settings.team.title')}</Title>
+          <Divider />
+          <SimpleGrid cols={2}>
+            <Switch
+              checked={globalConfig?.allowTeamCreation ?? true}
+              disabled={disabled}
+              label={SwitchLabel(
+                t('admin.content.settings.team.allow_creation.label'),
+                t('admin.content.settings.team.allow_creation.description')
+              )}
+              onChange={(e) =>
+                setGlobalConfig({
+                  ...globalConfig,
+                  allowTeamCreation: e.currentTarget.checked,
+                })
+              }
+            />
+            <Switch
+              checked={globalConfig?.allowTeamJoining ?? true}
+              disabled={disabled}
+              label={SwitchLabel(
+                t('admin.content.settings.team.allow_joining.label'),
+                t('admin.content.settings.team.allow_joining.description')
+              )}
+              onChange={(e) =>
+                setGlobalConfig({
+                  ...globalConfig,
+                  allowTeamJoining: e.currentTarget.checked,
+                })
+              }
+            />
+          </SimpleGrid>
+        </Stack>
+        <Stack gap="sm">
           <Title order={2}>{t('admin.content.settings.account.title')}</Title>
           <Divider />
           <SimpleGrid cols={4}>

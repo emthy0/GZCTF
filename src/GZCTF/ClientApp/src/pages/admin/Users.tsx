@@ -25,6 +25,7 @@ import {
   mdiLockReset,
   mdiMagnify,
   mdiPencilOutline,
+  mdiPlus,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import React, { FC, useEffect, useRef, useState } from 'react'
@@ -32,6 +33,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { ActionIconWithConfirm } from '@Components/ActionIconWithConfirm'
 import { AdminPage } from '@Components/admin/AdminPage'
 import { UserEditModal, RoleColorMap } from '@Components/admin/UserEditModal'
+import { UserCreateModal } from '@Components/admin/UserCreateModal'
 import { showErrorMsg } from '@Utils/Shared'
 import { useArrayResponse } from '@Hooks/useArrayResponse'
 import { useUser } from '@Hooks/useUser'
@@ -44,6 +46,7 @@ const Users: FC = () => {
   const [page, setPage] = useState(1)
   const [update, setUpdate] = useState(new Date())
   const [editModalOpened, setEditModalOpened] = useState(false)
+  const [createModalOpened, setCreateModalOpened] = useState(false)
   const [activeUser, setActiveUser] = useState<UserInfoModel>({})
   const { data: users, total, setData: setUsers, updateData: updateUsers } = useArrayResponse<UserInfoModel>()
   const [hint, setHint] = useInputState('')
@@ -190,6 +193,14 @@ const Users: FC = () => {
     }
   }
 
+  const onUserCreated = (newUser: UserInfoModel) => {
+    if (users) {
+      updateUsers([newUser, ...users])
+    }
+    setCurrent(current + 1)
+    setUpdate(new Date())
+  }
+
   return (
     <AdminPage
       isLoading={searching || !users}
@@ -206,6 +217,12 @@ const Users: FC = () => {
             }}
             rightSection={<Icon path={mdiAccountOutline} size={1} />}
           />
+          <Button
+            leftSection={<Icon path={mdiPlus} size={1} />}
+            onClick={() => setCreateModalOpened(true)}
+          >
+            {t('admin.button.create_user')}
+          </Button>
           <Group justify="right">
             <Text fw="bold" size="sm">
               <Trans
@@ -334,6 +351,12 @@ const Users: FC = () => {
               [user, ...(users?.filter((n) => n.id !== user.id) ?? [])].sort((a, b) => (a.id! < b.id! ? -1 : 1))
             )
           }}
+        />
+        <UserCreateModal
+          size="50%"
+          opened={createModalOpened}
+          onClose={() => setCreateModalOpened(false)}
+          onUserCreated={onUserCreated}
         />
       </Paper>
     </AdminPage>

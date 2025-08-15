@@ -2,6 +2,7 @@ import {
   ActionIcon,
   Avatar,
   Badge,
+  Button,
   Code,
   Group,
   Input,
@@ -24,6 +25,8 @@ import {
   mdiLockOutline,
   mdiMagnify,
   mdiPencilOutline,
+  mdiPlus,
+  mdiAccountMultiple,
 } from '@mdi/js'
 import { Icon } from '@mdi/react'
 import cx from 'clsx'
@@ -32,9 +35,11 @@ import { Trans, useTranslation } from 'react-i18next'
 import { ActionIconWithConfirm } from '@Components/ActionIconWithConfirm'
 import { AdminPage } from '@Components/admin/AdminPage'
 import { TeamEditModal } from '@Components/admin/TeamEditModal'
+import { TeamCreateModal } from '@Components/admin/TeamCreateModal'
+import { TeamAssignmentModal } from '@Components/admin/TeamAssignmentModal'
 import { showErrorMsg } from '@Utils/Shared'
 import { useArrayResponse } from '@Hooks/useArrayResponse'
-import api, { TeamInfoModel, TeamWithDetailedUserInfo } from '@Api'
+import api, { TeamInfoModel, TeamWithDetailedUserInfo, UserInfoModel } from '@Api'
 import misc from '@Styles/Misc.module.css'
 import tableClasses from '@Styles/Table.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
@@ -50,7 +55,11 @@ const Teams: FC = () => {
   const [disabled, setDisabled] = useState(false)
   const [current, setCurrent] = useState(0)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
   const [activeTeam, setActiveTeam] = useState<TeamWithDetailedUserInfo>({})
+  const [users, setUsers] = useState<UserInfoModel[]>([])
+  const [assignmentTeam, setAssignmentTeam] = useState<TeamInfoModel>({})
 
   const { t } = useTranslation()
   const viewport = useRef<HTMLDivElement>(null)
@@ -76,6 +85,19 @@ const Teams: FC = () => {
 
     fetchData()
   }, [page, update])
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await api.admin.adminUsers({ count: 1000, skip: 0 })
+        setUsers(res.data)
+      } catch (e) {
+        showErrorMsg(e, t)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   const onSearch = async () => {
     try {
@@ -153,6 +175,28 @@ const Teams: FC = () => {
     }
   }
 
+  const onTeamCreated = (newTeam: TeamInfoModel) => {
+    if (teams) {
+      updateTeams([newTeam, ...teams])
+    }
+    setCurrent(current + 1)
+    setUpdate(new Date())
+  }
+
+  const onTeamUpdated = (updatedTeam: TeamInfoModel) => {
+    if (teams) {
+      updateTeams(
+        [updatedTeam, ...(teams.filter((t) => t.id !== updatedTeam.id) ?? [])].sort((a, b) => (a.id! < b.id! ? -1 : 1))
+      )
+    }
+    setUpdate(new Date())
+  }
+
+  const openAssignmentModal = (team: TeamInfoModel) => {
+    setAssignmentTeam(team)
+    setIsAssignmentModalOpen(true)
+  }
+
   return (
     <AdminPage
       isLoading={searching || !teams}
@@ -169,6 +213,12 @@ const Teams: FC = () => {
             }}
             rightSection={<Icon path={mdiAccountGroupOutline} size={1} />}
           />
+          <Button
+            leftSection={<Icon path={mdiPlus} size={1} />}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            {t('admin.button.create_team')}
+          </Button>
           <Group justify="right">
             <Text fw="bold" size="sm">
               <Trans
@@ -283,6 +333,13 @@ const Teams: FC = () => {
                             <Icon path={mdiPencilOutline} size={1} />
                           </ActionIcon>
 
+                          <ActionIcon
+                            color="green"
+                            onClick={() => openAssignmentModal(team)}
+                          >
+                            <Icon path={mdiAccountMultiple} size={1} />
+                          </ActionIcon>
+
                           <ActionIconWithConfirm
                             iconPath={team.locked ? mdiLockOpenVariantOutline : mdiLockOutline}
                             color={team.locked ? 'gray' : 'yellow'}
@@ -322,6 +379,21 @@ const Teams: FC = () => {
               [team, ...(teams?.filter((n) => n.id !== team.id) ?? [])].sort((a, b) => (a.id! < b.id! ? -1 : 1))
             )
           }}
+        />
+        <TeamCreateModal
+          size="50%"
+          opened={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          users={users}
+          onTeamCreated={onTeamCreated}
+        />
+        <TeamAssignmentModal
+          size="md"
+          opened={isAssignmentModalOpen}
+          onClose={() => setIsAssignmentModalOpen(false)}
+          team={assignmentTeam}
+          availableUsers={users}
+          onTeamUpdated={onTeamUpdated}
         />
       </Paper>
     </AdminPage>

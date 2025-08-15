@@ -60,4 +60,14 @@ public class AdminUserInfoModel
     /// User role
     /// </summary>
     public Role? Role { get; set; }
+
+    /// <summary>
+    /// Allow user to create teams
+    /// </summary>
+    public bool? CanCreateTeam { get; set; }
+
+    /// <summary>
+    /// Allow user to join teams
+    /// </summary>
+    public bool? CanJoinTeam { get; set; }
 }

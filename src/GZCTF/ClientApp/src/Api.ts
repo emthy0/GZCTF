@@ -366,6 +366,10 @@ export interface GlobalConfig {
   customTheme?: string | null;
   /** Use asymmetric encryption for API requests */
   apiEncryption?: boolean;
+  /** Allow team creation globally */
+  allowTeamCreation?: boolean;
+  /** Allow team joining globally */
+  allowTeamJoining?: boolean;
   /** Platform logo hash */
   logoHash?: string | null;
   /** Platform favicon hash */
@@ -402,6 +406,10 @@ export interface ContainerPolicy {
    * @max 360
    */
   renewalWindow?: number;
+  /** Allow team creation globally */
+  allowTeamCreation?: boolean;
+  /** Allow team joining globally */
+  allowTeamJoining?: boolean;
 }
 
 /** List response */
@@ -575,6 +583,28 @@ export interface AdminTeamModel {
   locked?: boolean | null;
 }
 
+/** Team creation (Admin) */
+export interface AdminCreateTeamModel {
+  /**
+   * Team name
+   * @minLength 1
+   * @maxLength 20
+   */
+  name: string;
+  /**
+   * Team bio
+   * @maxLength 72
+   */
+  bio?: string | null;
+  /**
+   * Team country
+   * @maxLength 72
+   */
+  country?: string | null;
+  /** Captain user ID */
+  captainId: string;
+}
+
 /** User information modification (Admin) */
 export interface AdminUserInfoModel {
   /**
@@ -612,6 +642,10 @@ export interface AdminUserInfoModel {
   emailConfirmed?: boolean | null;
   /** User role */
   role?: Role | null;
+  /** Allow user to create teams */
+  canCreateTeam?: boolean | null;
+  /** Allow user to join teams */
+  canJoinTeam?: boolean | null;
 }
 
 /** Log information (Admin) */
@@ -3010,6 +3044,72 @@ export class Api<
         method: "PUT",
         body: data,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Use this API to create a single user, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminCreateUser
+     * @summary Create single user
+     * @request POST:/api/admin/user
+     */
+    adminCreateUser: (data: UserCreateModel, params: RequestParams = {}) =>
+      this.request<UserInfoModel, RequestResponse>({
+        path: `/api/admin/user`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Use this API to create a team, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminCreateTeam
+     * @summary Create team
+     * @request POST:/api/admin/team
+     */
+    adminCreateTeam: (data: AdminCreateTeamModel, params: RequestParams = {}) =>
+      this.request<TeamInfoModel, RequestResponse>({
+        path: `/api/admin/team`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Use this API to assign a user to a team, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminAssignUserToTeam
+     * @summary Assign user to team
+     * @request POST:/api/admin/teams/{teamId}/users/{userId}
+     */
+    adminAssignUserToTeam: (teamId: number, userId: string, params: RequestParams = {}) =>
+      this.request<void, RequestResponse>({
+        path: `/api/admin/teams/${teamId}/users/${userId}`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Use this API to remove a user from a team, requires Admin permission
+     *
+     * @tags Admin
+     * @name AdminRemoveUserFromTeam
+     * @summary Remove user from team
+     * @request DELETE:/api/admin/teams/{teamId}/users/{userId}
+     */
+    adminRemoveUserFromTeam: (teamId: number, userId: string, params: RequestParams = {}) =>
+      this.request<void, RequestResponse>({
+        path: `/api/admin/teams/${teamId}/users/${userId}`,
+        method: "DELETE",
         ...params,
       }),
 

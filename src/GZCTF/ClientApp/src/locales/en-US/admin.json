@@ -61,7 +61,9 @@
     },
     "writeups": {
       "download_all": "Download All"
-    }
+    },
+    "create_user": "Create User",
+    "create_team": "Create Team"
   },
   "content": {
     "games": {
@@ -356,6 +358,97 @@
         "title": "Reset password for {{name}}"
       },
       "stats": "<1>{{current}}</1> out of <1>{{total}}</1> users displayed"
+    },
+    "settings": {
+      "account": {
+        "allow_register": {
+          "description": "Allow users to register new accounts",
+          "label": "Allow Register"
+        },
+        "auto_active": {
+          "description": "Whether to activate users after registered",
+          "label": "Auto-activate"
+        },
+        "email_confirmation_required": {
+          "description": "Whether email confirmation is required for registration, email change, and password recovery",
+          "label": "Email Confirmation Required"
+        },
+        "email_domain_list": {
+          "description": "Email domain whitelist, separated by commas",
+          "label": "Email Domain List"
+        },
+        "title": "Account Policy",
+        "use_captcha": {
+          "description": "Use captcha verification",
+          "label": "Use Captcha"
+        }
+      },
+      "container": {
+        "auto_destroy": {
+          "description": "Automatically destroy the oldest container when the limit is reached",
+          "label": "Auto Destroy"
+        },
+        "default_lifetime": {
+          "description": "Default container lifetime in minutes",
+          "label": "Default Lifetime"
+        },
+        "extension_duration": {
+          "description": "Extension duration for each renewal in minutes",
+          "label": "Extension Duration"
+        },
+        "renewal_window": {
+          "description": "Renewal window before container stops in minutes",
+          "label": "Renewal Window"
+        },
+        "title": "Container Policy"
+      },
+      "platform": {
+        "api_encryption": {
+          "description": "Use asymmetric encryption for API requests",
+          "label": "API Encryption",
+          "not_available": "Not supported in this browser"
+        },
+        "color": {
+          "description": "Custom theme color",
+          "label": "Color Scheme"
+        },
+        "color_palette": {
+          "description": "Color palette preview",
+          "label": "Color Palette"
+        },
+        "description": {
+          "description": "Site description information",
+          "label": "Description"
+        },
+        "footer": {
+          "description": "Footer information",
+          "label": "Footer"
+        },
+        "logo": {
+          "description": "Platform logo",
+          "label": "Logo"
+        },
+        "name": {
+          "description": "Platform prefix name",
+          "label": "Platform Name"
+        },
+        "slogan": {
+          "description": "Platform slogan",
+          "label": "Slogan"
+        },
+        "title": "Platform Settings"
+      },
+      "team": {
+        "allow_creation": {
+          "description": "Allow users to create teams globally",
+          "label": "Allow Team Creation"
+        },
+        "allow_joining": {
+          "description": "Allow users to join teams globally",
+          "label": "Allow Team Joining"
+        },
+        "title": "Team Settings"
+      }
     }
   },
   "label": {
@@ -378,9 +471,12 @@
     },
     "users": {
       "active": "Activate",
+      "can_create_team": "Can Create Teams",
+      "can_join_team": "Can Join Teams",
       "last_visit": "Last Visit",
       "role": "User Roles"
-    }
+    },
+    "manage_team_members": "Manage Team Members"
   },
   "notification": {
     "games": {
@@ -444,9 +540,14 @@
       "fetch_failed": "Failed to fetch logs"
     },
     "teams": {
-      "deleted": "{{name}} has been deleted"
+      "created": "Team created successfully",
+      "deleted": "{{name}} has been deleted",
+      "user_assigned": "User assigned to team successfully",
+      "user_removed": "User removed from team successfully",
+      "cannot_remove_captain": "Cannot remove team captain"
     },
     "users": {
+      "created": "User created successfully",
       "deleted": "{{name}} has been deleted",
       "password_copied": "Password copied to clipboard",
       "updated": "User profile updated"
@@ -494,7 +595,10 @@
       "real_name": "Empty",
       "search": "Search by ID/username/email/student ID/full name",
       "student_id": "00000000"
-    }
+    },
+    "team_name_optional": "Optional team to assign user to",
+    "captain_username": "Enter captain username",
+    "select_user": "Select a user to assign"
   },
   "tab": {
     "games": {

@@ -25,6 +25,7 @@ import { WithNavBar } from '@Components/WithNavbar'
 import { WithRole } from '@Components/WithRole'
 import { showErrorMsg } from '@Utils/Shared'
 import { useIsMobile } from '@Utils/ThemeOverride'
+import { useConfig } from '@Hooks/useConfig'
 import { usePageTitle } from '@Hooks/usePageTitle'
 import { useTeams, useUser } from '@Hooks/useUser'
 import api, { Role, TeamInfoModel } from '@Api'
@@ -32,6 +33,7 @@ import api, { Role, TeamInfoModel } from '@Api'
 const Teams: FC = () => {
   const { user, error: userError } = useUser()
   const { teams, mutate: mutateTeams, error: teamsError } = useTeams()
+  const { config } = useConfig()
 
   const theme = useMantineTheme()
 
@@ -44,7 +46,8 @@ const Teams: FC = () => {
   const [editTeam, setEditTeam] = useState<TeamInfoModel | null>(null)
 
   const teamsOwned = teams?.filter((t) => t.members?.some((m) => m?.captain && m.id === user?.userId))
-  const disallowCreate = (teamsOwned?.length ?? 0) >= 3
+  const disallowCreate = (teamsOwned?.length ?? 0) >= 3 || !config.allowTeamCreation
+  const disallowJoin = !config.allowTeamJoining
 
   const isMobile = useIsMobile()
 
@@ -95,6 +98,7 @@ const Teams: FC = () => {
         leftSection={<Icon path={mdiHumanGreetingVariant} size={1} />}
         variant={colorScheme === 'dark' ? 'outline' : 'filled'}
         onClick={() => setJoinOpened(true)}
+        disabled={disallowJoin}
       >
         {t('team.button.join')}
       </Button>
@@ -102,6 +106,7 @@ const Teams: FC = () => {
         leftSection={<Icon path={mdiAccountMultiplePlus} size={1} />}
         variant={colorScheme === 'dark' ? 'outline' : 'filled'}
         onClick={() => setCreateOpened(true)}
+        disabled={disallowCreate}
       >
         {t('team.button.create')}
       </Button>

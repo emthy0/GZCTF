@@ -271,6 +271,16 @@ public class GlobalConfig
     public bool ApiEncryption { get; set; }
 
     /// <summary>
+    /// Allow team creation globally
+    /// </summary>
+    public bool AllowTeamCreation { get; set; } = true;
+
+    /// <summary>
+    /// Allow team joining globally
+    /// </summary>
+    public bool AllowTeamJoining { get; set; } = true;
+
+    /// <summary>
     /// Platform logo hash
     /// </summary>
     [AutoSaveIgnore]
@@ -348,6 +358,16 @@ public partial class ClientConfig
     /// </summary>
     public int RenewalWindow { get; set; } = 10;
 
+    /// <summary>
+    /// Allow team creation globally
+    /// </summary>
+    public bool AllowTeamCreation { get; set; } = true;
+
+    /// <summary>
+    /// Allow team joining globally
+    /// </summary>
+    public bool AllowTeamJoining { get; set; } = true;
+
     public static ClientConfig FromServiceProvider(IServiceProvider serviceProvider) =>
         FromConfigs(
             serviceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value,
@@ -368,7 +388,9 @@ public partial class ClientConfig
             PortMapping = containerProvider.PortMappingType,
             DefaultLifetime = containerPolicy.DefaultLifetime,
             ExtensionDuration = containerPolicy.ExtensionDuration,
-            RenewalWindow = containerPolicy.RenewalWindow
+            RenewalWindow = containerPolicy.RenewalWindow,
+            AllowTeamCreation = globalConfig.AllowTeamCreation,
+            AllowTeamJoining = globalConfig.AllowTeamJoining
         };
 }
 

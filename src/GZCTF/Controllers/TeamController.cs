@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using System.Text.RegularExpressions;
 using GZCTF.Middlewares;
+using GZCTF.Models.Internal;
 using GZCTF.Models.Request.Info;
 using GZCTF.Repositories.Interface;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Options;
 using Org.BouncyCastle.Crypto.Parameters;
 
 namespace GZCTF.Controllers;
@@ -92,6 +94,14 @@ public partial class TeamController(
     public async Task<IActionResult> CreateTeam([FromBody] TeamUpdateModel model, CancellationToken token)
     {
         var user = await userManager.GetUserAsync(User);
+
+        var globalConfig = HttpContext.RequestServices.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value;
+        
+        if (!globalConfig.AllowTeamCreation)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_CreationDisabled)]));
+            
+        if (!user!.CanCreateTeam)
+            return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_CreationDisabled)]));
 
         var teams = await teamRepository.GetUserTeams(user!, token);
 
@@ -401,6 +411,13 @@ public partial class TeamController(
                     teamName]));
 
             var user = await userManager.GetUserAsync(User);
+            var globalConfig = HttpContext.RequestServices.GetRequiredService<IOptionsSnapshot<GlobalConfig>>().Value;
+            
+            if (!globalConfig.AllowTeamJoining)
+                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_JoinDisabled)]));
+
+            if (!user!.CanJoinTeam)
+                return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.Team_JoinDisabled)]));
 
             if (team.Members.Any(m => m.Id == user!.Id))
                 return BadRequest(new RequestResponse(localizer[nameof(Resources.Program.User_AlreadyInTeam)]));

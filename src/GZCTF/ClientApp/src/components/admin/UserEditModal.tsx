@@ -2,6 +2,7 @@ import {
   Avatar,
   Button,
   Center,
+  Checkbox,
   Grid,
   Group,
   Modal,
@@ -160,6 +161,21 @@ export const UserEditModal: FC<UserEditModalProps> = (props) => {
           maxRows={4}
           onChange={(event) => setProfile({ ...profile, bio: event.target.value })}
         />
+
+        <SimpleGrid cols={2}>
+          <Checkbox
+            label={t('admin.label.users.can_create_team')}
+            checked={profile.canCreateTeam ?? true}
+            disabled={disabled}
+            onChange={(event) => setProfile({ ...profile, canCreateTeam: event.currentTarget.checked })}
+          />
+          <Checkbox
+            label={t('admin.label.users.can_join_team')}
+            checked={profile.canJoinTeam ?? true}
+            disabled={disabled}
+            onChange={(event) => setProfile({ ...profile, canJoinTeam: event.currentTarget.checked })}
+          />
+        </SimpleGrid>
 
         <Stack gap={2}>
           <Group justify="space-between">
