@@ -184,7 +184,8 @@ public class Game
             privateKey = new(Codec.Base64.DecodeToBytes(PrivateKey), 0);
         else
             privateKey = new(Codec.Xor(Codec.Base64.DecodeToBytes(PrivateKey), xorKey), 0);
-
+        System.Diagnostics.Debug.WriteLine(privateKey);
+        Console.WriteLine(Convert.ToBase64String(privateKey.GetEncoded()));
         return CryptoUtils.GenerateSignature(str, privateKey, SignAlgorithm.Ed25519);
     }
 
