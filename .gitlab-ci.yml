@@ -1,0 +1,144 @@
+stages:
+  - build
+  - cleanup
+
+variables:
+  # Define if this is a release tag (v*.*.* or v*.*.*-patch.*)
+  RELEASE: '$CI_COMMIT_TAG =~ /^v\d+(\.\d+){0,2}(-patch\.\d+)?$/ && ($CI_COMMIT_TAG !~ /-/ || $CI_COMMIT_TAG =~ /-patch\./'
+
+build:
+  stage: build
+  image: docker:28.3-dind
+  services:
+    - docker:28.3-dind
+  before_script:
+    - apk add --no-cache dotnet9-sdk nodejs npm curl bash
+    - npm i -g pnpm
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    # Set current datetime
+    - CURRENT_DATETIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    # Set environment variables for Vite build
+    - export VITE_APP_BUILD_TIMESTAMP=$CURRENT_DATETIME
+    - export VITE_APP_GIT_SHA=$CI_COMMIT_SHA
+    - export VITE_APP_GIT_NAME=$CI_COMMIT_REF_NAME
+    
+    # Setup QEMU for multi-arch builds
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    
+    # Setup Docker Buildx
+    - docker buildx create --use
+    
+    # Change to project directory
+    - cd src/GZCTF
+    
+    # Build project
+    - dotnet build "GZCTF.csproj" -c Release -o build
+    
+    # Publish project for amd64
+    - >
+      dotnet publish "GZCTF.csproj" -c Release -o publish/linux/amd64 -r linux-x64 --no-self-contained 
+      /p:PublishReadyToRun=true
+    
+    # Only build arm64 for release tags
+    - >
+      if [ "$RELEASE" = "true" ]; then
+        dotnet publish "GZCTF.csproj" -c Release -o publish/linux/arm64 -r linux-arm64 --no-self-contained 
+        /p:PublishReadyToRun=true /p:EFOptimizeContext=false
+      fi
+    
+    # Determine tags for the image
+    - |
+      TAGS=""
+      # Add branch/tag reference
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+      else
+        TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+      fi
+      
+      # Add version tags for releases
+      if [ "$RELEASE" = "true" ]; then
+        # Add latest tag
+        TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:latest"
+        
+        # Extract version components using sed
+        if echo "$CI_COMMIT_TAG" | grep -q "^v[0-9]\+\.[0-9]\+\.[0-9]\+"; then
+          VERSION=$(echo "$CI_COMMIT_TAG" | sed 's/^v//')
+          MAJOR=$(echo "$VERSION" | cut -d'.' -f1)
+          MINOR=$(echo "$VERSION" | cut -d'.' -f2)
+          PATCH=$(echo "$VERSION" | cut -d'.' -f3)
+          
+          TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:v$MAJOR"
+          TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:v$MAJOR.$MINOR"
+          TAGS="$TAGS --tag $CI_REGISTRY_IMAGE:v$MAJOR.$MINOR.$PATCH"
+        fi
+      fi
+    
+    # Determine platforms
+    - |
+      if [ "$RELEASE" = "true" ]; then
+        PLATFORMS="linux/amd64,linux/arm64"
+      else
+        PLATFORMS="linux/amd64"
+      fi
+    
+    # Build and push the image
+    - >
+      docker buildx build
+      --push
+      --platform $PLATFORMS
+      $TAGS
+      --label "org.opencontainers.image.revision=$CI_COMMIT_SHA"
+      --label "org.opencontainers.image.created=$CURRENT_DATETIME"
+      --label "org.opencontainers.image.version=$CI_COMMIT_REF_NAME"
+      .
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH =~ /^ci\/.*/
+    - if: $CI_COMMIT_BRANCH =~ /^v.*/
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - changes:
+        - src/**/*
+
+cleanup:
+  stage: cleanup
+  image: 
+    name: alpine:latest
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    # Get list of all container registry repositories
+    - |
+      echo "Cleaning up old container images..."
+      
+      # Get all repositories
+      REPOSITORIES=$(curl --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories" | jq -r '.[].id')
+      
+      for repo_id in $REPOSITORIES; do
+        # Get all tags for this repository
+        TAGS=$(curl --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags" | jq -r '.[].name')
+        
+        # Delete tags that don't match our patterns
+        for tag in $TAGS; do
+          # Keep latest, develop, and version tags
+          if [ "$tag" != "latest" ] && [ "$tag" != "develop" ] && ! echo "$tag" | grep -q "^v[0-9]\+\(\.[0-9]\+\)\{0,2\}$"; then
+            echo "Deleting tag: $tag"
+            curl --request DELETE --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags/$tag"
+          fi
+        done
+        
+        # Delete untagged images
+        echo "Deleting untagged images for repository $repo_id"
+        curl --request DELETE --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags" --data "name_regex=.*" --data "keep_n=0" --data "name_regex_delete=.*-untagged"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+  needs:
+    - build
+  allow_failure: true
