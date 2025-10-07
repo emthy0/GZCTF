@@ -37,6 +37,7 @@ import classes from '@Styles/Instances.module.css'
 import misc from '@Styles/Misc.module.css'
 import tableClasses from '@Styles/Table.module.css'
 import tooltipClasses from '@Styles/Tooltip.module.css'
+import { useConfig } from '@Hooks/useConfig'
 
 type SelectTeamItemProps = TeamModel & ComboboxItem
 type SelectChallengeItemProps = ChallengeModel & ComboboxItem
@@ -84,6 +85,7 @@ const Instances: FC = () => {
   const [teams, setTeams] = useState<TeamModel[]>()
   const [challenge, setChallenge] = useState<ChallengeModel[]>()
   const [disabled, setDisabled] = useState(false)
+  const { config } = useConfig()
   const clipBoard = useClipboard()
   const challengeCategoryLabelMap = useChallengeCategoryLabelMap()
 
@@ -260,7 +262,7 @@ const Instances: FC = () => {
                               fz="sm"
                               className={tableClasses.clickable}
                               onClick={() => {
-                                clipBoard.copy(inst.containerGuid && getProxyUrl(inst.containerGuid))
+                                clipBoard.copy(inst.containerGuid && getProxyUrl(inst.containerGuid, undefined, config.publicEntry))
                                 showNotification({
                                   color: 'teal',
                                   title: t('admin.notification.instances.url_copied.title'),

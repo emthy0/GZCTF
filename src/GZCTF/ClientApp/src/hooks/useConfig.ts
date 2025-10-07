@@ -42,6 +42,7 @@ export const useConfig = () => {
       title: 'GZ',
       slogan: 'Hack for fun not for profit',
       portMapping: ContainerPortMappingType.Default,
+      publicEntry: undefined,
       footerInfo: null,
       customTheme: null,
       defaultLifetime: 120,

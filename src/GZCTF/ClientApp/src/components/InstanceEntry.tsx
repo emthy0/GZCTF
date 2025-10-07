@@ -84,7 +84,7 @@ export const InstanceEntry: FC<InstanceEntryProps> = (props) => {
     config.portMapping === ContainerPortMappingType.PlatformProxy &&
     instanceEntry.length === 36 &&
     !instanceEntry.includes(':')
-  const originalEntry = isPlatformProxy ? getProxyEntry(instanceEntry, isPreview) : instanceEntry
+  const originalEntry = isPlatformProxy ? getProxyEntry(instanceEntry, isPreview, config?.publicEntry) : instanceEntry
 
   const [canExtend, setCanExtend] = useDebouncedState(false, 500)
 

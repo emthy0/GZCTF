@@ -450,10 +450,11 @@ export const TaskStatusColorMap = new Map<TaskStatus | null, string>([
   [null, 'gray'],
 ])
 
-export const getProxyUrl = (guid: string, isPreview: boolean = false) => {
+export const getProxyUrl = (guid: string, isPreview: boolean = false, publicEntry?: string) => {
   const protocol = window.location.protocol.replace('http', 'ws')
   const api = isPreview ? 'api/proxy/noinst' : 'api/proxy'
-  return `${protocol}//${window.location.host}/${api}/${guid}`
+  const host = publicEntry ?? window.location.host
+  return `${protocol}//${host}/${api}/${guid}`
 }
 
 export const HunamizeSize = (size: number) => {

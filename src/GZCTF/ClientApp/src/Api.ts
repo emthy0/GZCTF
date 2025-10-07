@@ -1864,6 +1864,7 @@ export interface ClientConfig {
   logoUrl?: string | null;
   /** Container port mapping type */
   portMapping?: ContainerPortMappingType;
+  publicEntry?: string;
   /**
    * Default container lifetime in minutes
    * @format int32

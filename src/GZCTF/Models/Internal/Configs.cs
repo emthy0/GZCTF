@@ -334,6 +334,11 @@ public partial class ClientConfig
     public ContainerPortMappingType PortMapping { get; set; } = ContainerPortMappingType.Default;
 
     /// <summary>
+    /// Public Entry for WSRX Proxy
+    /// </summary>
+    public string? PublicEntry { get; set; } 
+
+    /// <summary>
     /// Default container lifetime in minutes
     /// </summary>
     public int DefaultLifetime { get; set; } = 120;
@@ -366,6 +371,7 @@ public partial class ClientConfig
             LogoUrl = globalConfig.LogoUrl,
             ApiPublicKey = globalConfig.ApiEncryption ? managedConfig.ApiEncryption.PublicKey : null,
             PortMapping = containerProvider.PortMappingType,
+            PublicEntry = containerProvider.PublicEntry,
             DefaultLifetime = containerPolicy.DefaultLifetime,
             ExtensionDuration = containerPolicy.ExtensionDuration,
             RenewalWindow = containerPolicy.RenewalWindow
