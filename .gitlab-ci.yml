@@ -10,7 +10,7 @@ build:
   stage: build
   image: docker:28.3-dind
   services:
-    - docker:28.3-dind
+    - mcr.microsoft.com/dotnet/sdk:9.0.305-alpine3.22
   before_script:
     - apk add --no-cache dotnet9-sdk nodejs npm curl bash
     - npm i -g pnpm
